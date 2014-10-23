@@ -7,32 +7,58 @@
 		<version>1.532.3</version>
 	</parent>
 
-	<properties>
-		<jenkins.version>${project.parent.version}</jenkins.version>
-	</properties>
-
 	<groupId>org.jenkins-ci.plugins</groupId>
 	<artifactId>openshift-deployer-plugin</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
 	<packaging>hpi</packaging>
+	<name>OpenShift Plugin</name>
+	<description>This plugin enable Jenkins jobs to create containers(gears) on OpenShift and deploy applications to it</description>
+
+	<developers>
+		<developer>
+			<id>ssadeghi</id>
+			<name>Siamak Sadeghianfar</name>
+			<email>ssadeghi@redhat.com</email>
+		</developer>
+	</developers>
+
+	<scm>
+		<connection>scm:git:git://github.com/siamaksade/openshift-deployer-plugin.git</connection>
+		<developerConnection>scm:git:git@github.com:siamaksade/openshift-deployer-plugin.git</developerConnection>
+		<url>https://github.com/siamaksade/openshift-deployer-plugin</url>
+		<tag>HEAD</tag>
+	</scm>
+
+	<repositories>
+		<repository>
+			<id>repo.jenkins-ci.org</id>
+			<url>http://repo.jenkins-ci.org/public/</url>
+		</repository>
+	</repositories>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<id>repo.jenkins-ci.org</id>
+			<url>http://repo.jenkins-ci.org/public/</url>
+		</pluginRepository>
+	</pluginRepositories>
+	
+	<properties>
+		<openshift-client.version>2.6.2.Final</openshift-client.version>
+		<jgit.version>3.5.1.201410131835-r</jgit.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>com.openshift</groupId>
 			<artifactId>openshift-java-client</artifactId>
-			<version>2.6.2.Final</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.jenkins-ci.plugins</groupId>
-			<artifactId>git-client</artifactId>
-			<version>1.11.0</version>
+			<version>${openshift-client.version}</version>
 		</dependency>
 
 		<dependency>
 			<artifactId>org.eclipse.jgit</artifactId>
 			<groupId>org.eclipse.jgit</groupId>
-			<version>3.5.1.201410131835-r</version>
+			<version>${jgit.version}</version>
 		</dependency>
 
 		<dependency>
@@ -40,24 +66,5 @@
 			<artifactId>commons-io</artifactId>
 			<version>2.4</version>
 		</dependency>
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<version>1.6.4</version>
-			<scope>provided</scope>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>1.6.4</version>
-			<scope>provided</scope>
-		</dependency>
 	</dependencies>
-
-	<build>
-		<plugins>
-		</plugins>
-	</build>
 </project>
