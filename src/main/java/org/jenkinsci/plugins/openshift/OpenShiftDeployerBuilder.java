@@ -125,10 +125,13 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
 			abort(listener, "No deployments found in '" + deploymentPath + "' directory");
 		}
 		
-		log(listener, "Copying target/" + deployment.getName() + " to deployments/ROOT.war");
-		copyFile(deployment, new File(cloneDir.getAbsoluteFile() + "/deployments/ROOT.war"));
-		log(listener, "Copying target/" + deployment.getName() + " to webapps/ROOT.war");
-		copyFile(deployment, new File(cloneDir.getAbsoluteFile() + "/webapps/ROOT.war"));
+		if (cartridges.contains("jbossews")) { // copy to /webapps for tomcat
+			log(listener, "Copying target/" + deployment.getName() + " to webapps/ROOT.war");
+			copyFile(deployment, new File(cloneDir.getAbsoluteFile() + "/webapps/ROOT.war"));
+		} else {
+			log(listener, "Copying target/" + deployment.getName() + " to deployments/ROOT.war");
+			copyFile(deployment, new File(cloneDir.getAbsoluteFile() + "/deployments/ROOT.war"));			
+		}
 		
 		// add directories
 		git.add()
@@ -232,19 +235,6 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
 
 			return items;
 		}
-		
-//		public ListBoxModel doFillCartridgesItems(@QueryParameter("serverName") final String serverName) {
-//			ListBoxModel items = new ListBoxModel();
-//			OpenShiftServer server = findServer(serverName, servers);
-//			OpenShiftV2Client client = new OpenShiftV2Client(server.getBrokerAddress(), server.getUsername(), server.getPassword());
-//			List<String> cartridgeNames = client.getCartridges();
-//			Collections.sort(cartridgeNames);
-//			for (String cartridge : cartridgeNames) {
-//				items.add(cartridge, cartridge);
-//			}
-//			
-//			return items;
-//		}
 		
 		public ListBoxModel doFillGearProfileItems(@QueryParameter("serverName") final String serverName) {
 			ListBoxModel items = new ListBoxModel();
