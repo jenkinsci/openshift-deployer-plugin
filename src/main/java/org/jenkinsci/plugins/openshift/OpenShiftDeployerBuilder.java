@@ -32,15 +32,22 @@ import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.PushCommand;
+import org.eclipse.jgit.api.TransportConfigCallback;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.api.errors.TransportException;
 import org.eclipse.jgit.lib.TextProgressMonitor;
+import org.eclipse.jgit.transport.JschConfigSessionFactory;
+import org.eclipse.jgit.transport.SshSessionFactory;
+import org.eclipse.jgit.transport.SshTransport;
+import org.eclipse.jgit.transport.Transport;
+import org.eclipse.jgit.transport.OpenSshConfig.Host;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
+import com.jcraft.jsch.Session;
 import com.openshift.client.IApplication;
 import com.openshift.client.IHttpClient.ISSLCertificateCallback;
 
@@ -104,6 +111,12 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
 
     	// clone repo
     	log(listener, "Cloning '" + app.getName()  + "' [" + app.getGitUrl() + "] to " + cloneDir.getAbsolutePath());
+    	SshSessionFactory.setInstance(new JschConfigSessionFactory() {
+			@Override
+			protected void configure(Host hc, Session session) {
+				session.setConfig("StrictHostKeyChecking", "no");				
+			}
+		});
     	Git git = Git.cloneRepository()
         		.setURI(app.getGitUrl())
         		.setDirectory(cloneDir)
