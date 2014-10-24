@@ -178,6 +178,7 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
     @Extension
     public static class DescriptorImpl extends BuildStepDescriptor<Builder> {
         private List<OpenShiftServer> servers;
+        private String publicKeyPath = System.getProperty("user.home") + "/.ssh/id_rsa.pub";
         
         public DescriptorImpl() {
             super(OpenShiftDeployerBuilder.class);
@@ -210,8 +211,12 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
 		public List<OpenShiftServer> getServers() {
 			return servers;
 		}
-				
-		public FormValidation doTestConnection(
+		
+		public String getPublicKeyPath() {
+			return publicKeyPath;
+		}
+
+		public FormValidation doCheckLogin(
 				@QueryParameter("brokerAddress") final String brokerAddress,
 		        @QueryParameter("username") final String username, 
 		        @QueryParameter("password") final String password) {
@@ -221,6 +226,34 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
 				return FormValidation.ok("Success");
 			} else {
 				return FormValidation.error(result.getMessage());
+			}
+		}
+		
+		public FormValidation doUploadSSHKeys(
+				@QueryParameter("brokerAddress") final String brokerAddress,
+		        @QueryParameter("username") final String username, 
+		        @QueryParameter("password") final String password,
+		        @QueryParameter("publicKeyPath") final String publicKeyPath) {
+			OpenShiftV2Client client = new OpenShiftV2Client(brokerAddress, username, password);
+			try {
+				if (publicKeyPath == null) {
+					return FormValidation.error("Specify the path to SSH public key.");
+				}
+				File file = new File(publicKeyPath);
+				
+				if (!file.exists()) {
+					return FormValidation.error("Specified SSH public key doesn't exist: " + publicKeyPath);	
+				}
+				
+				if (client.sshKeyExists(file)) {
+					return FormValidation.ok("SSH public key already exists.");
+					
+				} else {
+					client.uploadSSHKey(file);
+					return FormValidation.ok("SSH Public key uploaded successfully.");
+				}
+			} catch (IOException e) {
+				return FormValidation.error(e.getMessage());
 			}
 		}
 

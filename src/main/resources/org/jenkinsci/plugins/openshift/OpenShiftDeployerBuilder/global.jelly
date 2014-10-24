@@ -1,5 +1,8 @@
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
 	<f:section title="OpenShift Deployer">
+		<f:entry title="SSH Public Key Path" field="publicKeyPath">
+			<f:textbox value="${publicKeyPath}" default="${instance.defaultSSHPublicKeyPath}" />
+		</f:entry>  
 		<f:entry title="OpenShift Servers">
 			<f:repeatable name="servers" var="server" items="${descriptor.servers}" header="OpenShift Server" noAddButton="false">
 				<table style="margin-top:2em">
@@ -18,11 +21,9 @@
 				    <f:entry title="Password" field="password">
 				        <f:password name="password" value="${server.password}"/>
 				    </f:entry>
-				    				    
 				    <f:entry>
-				    	<f:validateButton title="Test Connection" progress="Testing..." method="testConnection" with="brokerAddress,username,password" />
-
-				    	
+				    	<f:validateButton title="Check Login" progress="Loggin in..." method="checkLogin" with="brokerAddress,username,password" />
+				    	<f:validateButton title="Upload SSH Keys" progress="Uploading..." method="uploadSSHKeys" with="publicKeyPath,brokerAddress,username,password, " />
 				    </f:entry>
 				    <f:entry>
 				    	<div align="right">

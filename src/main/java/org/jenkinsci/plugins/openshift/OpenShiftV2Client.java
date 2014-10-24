@@ -2,6 +2,9 @@ package org.jenkinsci.plugins.openshift;
 
 import static org.jenkinsci.plugins.openshift.Util.isEmpty;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -11,6 +14,8 @@ import javax.net.ssl.SSLSession;
 import com.openshift.client.IApplication;
 import com.openshift.client.IDomain;
 import com.openshift.client.IGearProfile;
+import com.openshift.client.IOpenShiftSSHKey;
+import com.openshift.client.SSHPublicKey;
 import com.openshift.client.IHttpClient.ISSLCertificateCallback;
 import com.openshift.client.IOpenShiftConnection;
 import com.openshift.client.IUser;
@@ -77,6 +82,23 @@ public class OpenShiftV2Client {
 		}
 		
 		return app;
+	}
+	
+	public boolean sshKeyExists(File publicKey) throws IOException {
+		SSHPublicKey newKey = new SSHPublicKey(publicKey);
+		IUser user = conn.getUser();
+		for (IOpenShiftSSHKey key : user.getSSHKeys()) {
+			if (newKey.getPublicKey().equals(key.getPublicKey())) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+	
+	public void uploadSSHKey(File publicKey) throws IOException {
+		SSHPublicKey newKey = new SSHPublicKey(publicKey);
+		conn.getUser().addSSHKey("jenkins-ci-" + InetAddress.getLocalHost().getHostName(), newKey);
 	}
 
 	private IGearProfile getGearProfile(String gearProfile, String domainName) {
