@@ -17,8 +17,13 @@
 		<f:textbox />
     </f:entry>
 
-	<f:entry title="Gear Profile" field="gearProfile"> 
-		<f:select />
-    </f:entry>
-
+	<f:advanced>
+		<f:entry title="Gear Profile" field="gearProfile"> 
+			<f:select />
+	    </f:entry>
+	    
+		<f:entry title="Deployment Path" field="deploymentPath" description="Path to the directory containing the deployment packages (war or ear)"> 
+			<f:textbox default="target/" />
+	    </f:entry>
+    </f:advanced>
 </j:jelly>

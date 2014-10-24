@@ -50,15 +50,17 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
     private String domain;
     private String gearProfile;
     private String appName;
+    private String deploymentPath;
     
 	@DataBoundConstructor
     public OpenShiftDeployerBuilder(String serverName, String appName, String cartridges,
-			String domain, String gearProfile) {
+			String domain, String gearProfile, String deploymentPath) {
 		this.serverName = serverName;
 		this.appName = appName;
 		this.cartridges = cartridges;
 		this.domain = domain;
 		this.gearProfile = gearProfile;
+		this.deploymentPath = deploymentPath;
 	}
 
 
@@ -82,6 +84,7 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
         
         try {
         	OpenShiftServer server = getServer(serverName);
+        	log(listener, "Deploying to OpenShift at http://" + server.getBrokerAddress() + ". Be patient! It might take a minute...");
         	OpenShiftV2Client client = new OpenShiftV2Client(server.getBrokerAddress(), server.getUsername(), server.getPassword());
         	IApplication app = client.getOrCreateApp(appName, domain, Arrays.asList(cartridges.split(" ")), gearProfile);
         	deployToApp(app, build, listener);
@@ -116,10 +119,10 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
 		}
 
 		// copy deployment
-		File targetDir = new File(build.getWorkspace() + "/target");
+		File targetDir = new File(build.getWorkspace() + "/" + deploymentPath);
 		File deployment = findDeployment(listener, targetDir);
 		if (deployment == null) {
-			abort(listener, "No deployments found in 'target' directory");
+			abort(listener, "No deployments found in '" + deploymentPath + "' directory");
 		}
 		
 		log(listener, "Copying target/" + deployment.getName() + " to deployments/ROOT.war");
@@ -284,6 +287,10 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
 
 	public String getAppName() {
 		return appName;
+	}
+	
+	public String getDeploymentPath() {
+		return deploymentPath;
 	}
 
 	public static class TrustingISSLCertificateCallback implements ISSLCertificateCallback {
