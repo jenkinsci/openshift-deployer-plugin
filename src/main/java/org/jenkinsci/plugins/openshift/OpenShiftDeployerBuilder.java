@@ -213,7 +213,7 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
 
         @Override
         public String getDisplayName() {
-            return "OpenShift Deployer";
+            return "Deploy to OpenShift";
         }
 
         @Override
