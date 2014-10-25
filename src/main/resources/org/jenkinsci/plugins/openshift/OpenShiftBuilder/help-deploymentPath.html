@@ -1,0 +1,11 @@
+<div>
+  The location of deployment units can be specified as a directory path or a URL to the packages (e.g. to Nexus). Examples:
+  <ul>
+  	<li>target/</li>
+  	<li>http://www.myrepo.com/org/keycloak/keycloak-server/1.0.2.Final/keycloak-server-1.0.2.Final.war</li>
+  	<li>https://repository.jboss.org/nexus/service/local/artifact/maven/redirect?r=central&g=org.keycloak&a=keycloak-server&v=1.0.2.Final&e=war</li>
+  </ul>
+  
+  In case of URL or when only one deployment package exists in the given directory, the package is deployed under the root ("/") context. When
+  multiple packages are found, all are deployed under their own context paths.
+</div>
