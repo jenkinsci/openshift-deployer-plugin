@@ -51,7 +51,7 @@ import com.jcraft.jsch.Session;
 import com.openshift.client.IApplication;
 import com.openshift.client.IHttpClient.ISSLCertificateCallback;
 
-public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
+public class OpenShiftBuilder extends Builder implements BuildStep {
     private String serverName;
     private String cartridges;
     private String domain;
@@ -60,7 +60,7 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
     private String deploymentPath;
     
 	@DataBoundConstructor
-    public OpenShiftDeployerBuilder(String serverName, String appName, String cartridges,
+    public OpenShiftBuilder(String serverName, String appName, String cartridges,
 			String domain, String gearProfile, String deploymentPath) {
 		this.serverName = serverName;
 		this.appName = appName;
@@ -194,7 +194,7 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
         private String publicKeyPath = System.getProperty("user.home") + "/.ssh/id_rsa.pub";
         
         public DescriptorImpl() {
-            super(OpenShiftDeployerBuilder.class);
+            super(OpenShiftBuilder.class);
             load();
         }
 
@@ -356,11 +356,11 @@ public class OpenShiftDeployerBuilder extends Builder implements BuildStep {
 	}
 	
 	private void abort(BuildListener listener, String msg) throws AbortException {
-    	listener.getLogger().println("[OpenShift Deployer] FAIL: " + msg);
+    	listener.getLogger().println("[OPENSHIFT] FAIL: " + msg);
     	throw new AbortException();
 	}
 	
 	private void log(BuildListener listener, String msg) throws AbortException {
-    	listener.getLogger().println("[OpenShift Deployer] " + msg);
+    	listener.getLogger().println("[OPENSHIFTÏ] " + msg);
 	}
 }
