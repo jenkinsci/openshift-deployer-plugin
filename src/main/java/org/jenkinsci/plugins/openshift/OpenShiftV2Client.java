@@ -24,6 +24,9 @@ import com.openshift.client.cartridge.ICartridge;
 import com.openshift.client.cartridge.IEmbeddableCartridge;
 import com.openshift.client.cartridge.IStandaloneCartridge;
 
+/**
+ * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
+ */
 public class OpenShiftV2Client {
 	private String broker;
 	private String username;

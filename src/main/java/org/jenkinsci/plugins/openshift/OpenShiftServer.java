@@ -2,6 +2,9 @@ package org.jenkinsci.plugins.openshift;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 
+/**
+ * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
+ */
 public class OpenShiftServer {
 	private String name;
 	private String brokerAddress;

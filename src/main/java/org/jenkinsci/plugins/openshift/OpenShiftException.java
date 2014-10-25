@@ -1,5 +1,8 @@
 package org.jenkinsci.plugins.openshift;
 
+/**
+ * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
+ */
 public class OpenShiftException extends RuntimeException {
 	public OpenShiftException() {
 		super();

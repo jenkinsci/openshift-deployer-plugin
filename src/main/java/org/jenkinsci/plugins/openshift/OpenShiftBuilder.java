@@ -51,6 +51,9 @@ import com.jcraft.jsch.Session;
 import com.openshift.client.IApplication;
 import com.openshift.client.IHttpClient.ISSLCertificateCallback;
 
+/**
+ * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
+ */
 public class OpenShiftBuilder extends Builder implements BuildStep {
     private String serverName;
     private String cartridges;
@@ -108,6 +111,13 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
     	if (cloneDir.exists()) {
     		FileUtils.deleteDirectory(cloneDir);
     	}
+    	
+    	// find deployment unit
+		File targetDir = new File(build.getWorkspace() + "/" + deploymentPath);
+		File deployment = findDeployment(listener, targetDir);
+		if (deployment == null) {
+			abort(listener, "No deployments found in '" + deploymentPath + "' directory");
+		}
 
     	// clone repo
     	log(listener, "Cloning '" + app.getName()  + "' [" + app.getGitUrl() + "] to " + cloneDir.getAbsolutePath());
@@ -132,12 +142,6 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		}
 
 		// copy deployment
-		File targetDir = new File(build.getWorkspace() + "/" + deploymentPath);
-		File deployment = findDeployment(listener, targetDir);
-		if (deployment == null) {
-			abort(listener, "No deployments found in '" + deploymentPath + "' directory");
-		}
-		
 		if (cartridges.contains("jbossews")) { // copy to /webapps for tomcat
 			log(listener, "Copying target/" + deployment.getName() + " to webapps/ROOT.war");
 			copyFile(deployment, new File(cloneDir.getAbsoluteFile() + "/webapps/ROOT.war"));
