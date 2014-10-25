@@ -1,6 +1,7 @@
 package org.jenkinsci.plugins.openshift;
 
 import static org.apache.commons.io.FileUtils.copyFile;
+import static org.apache.commons.io.FileUtils.copyFileToDirectory;
 import static org.apache.commons.io.FileUtils.forceDelete;
 import static org.jenkinsci.plugins.openshift.Util.isEmpty;
 import hudson.AbortException;
@@ -32,16 +33,13 @@ import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.PushCommand;
-import org.eclipse.jgit.api.TransportConfigCallback;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.api.errors.TransportException;
 import org.eclipse.jgit.lib.TextProgressMonitor;
 import org.eclipse.jgit.transport.JschConfigSessionFactory;
-import org.eclipse.jgit.transport.SshSessionFactory;
-import org.eclipse.jgit.transport.SshTransport;
-import org.eclipse.jgit.transport.Transport;
 import org.eclipse.jgit.transport.OpenSshConfig.Host;
+import org.eclipse.jgit.transport.SshSessionFactory;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -114,9 +112,9 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
     	
     	// find deployment unit
 		File targetDir = new File(build.getWorkspace() + "/" + deploymentPath);
-		File deployment = findDeployment(listener, targetDir);
-		if (deployment == null) {
-			abort(listener, "No deployments found in '" + deploymentPath + "' directory");
+		List<File> deployments = findDeployment(listener, targetDir);
+		if (deployments.isEmpty()) {
+			abort(listener, "No deployment units found.");
 		}
 
     	// clone repo
@@ -142,13 +140,7 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		}
 
 		// copy deployment
-		if (cartridges.contains("jbossews")) { // copy to /webapps for tomcat
-			log(listener, "Copying target/" + deployment.getName() + " to webapps/ROOT.war");
-			copyFile(deployment, new File(cloneDir.getAbsoluteFile() + "/webapps/ROOT.war"));
-		} else {
-			log(listener, "Copying target/" + deployment.getName() + " to deployments/ROOT.war");
-			copyFile(deployment, new File(cloneDir.getAbsoluteFile() + "/deployments/ROOT.war"));			
-		}
+		copyDeploymentUnits(listener, cloneDir, deployments);
 		
 		// add directories
 		git.add()
@@ -173,8 +165,29 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		
 		log(listener, "Application deployed to " + app.getApplicationUrl());
 	}
+
+
+	private void copyDeploymentUnits(BuildListener listener, File cloneDir,
+			List<File> deployments) throws AbortException, IOException {
+		File dest = null;
+		if (cartridges.contains("jbossews")) {
+			dest = new File(cloneDir.getAbsoluteFile() + "/webapps"); // tomcat
+		} else {
+			dest = new File(cloneDir.getAbsoluteFile() + "/deployments"); // jboss/wildfly
+		}
+		
+		if (deployments.size() == 1) {
+			log(listener, "Copying '" + deployments.get(0).getName() + "' to '" + dest.getName() + "/ROOT.war'");
+			copyFile(deployments.get(0), new File(dest.getAbsoluteFile() + "/ROOT.war"));
+		} else {
+			for (File deployment : deployments) {
+				log(listener, "Copying '" + deployment.getName() + "' to '" + dest.getName() + "'");
+				copyFileToDirectory(deployment, dest);	
+			}
+		}
+	}
     
-	private File findDeployment(BuildListener listener, File dir) throws AbortException {
+	private List<File> findDeployment(BuildListener listener, File dir) throws AbortException {
 		if (!dir.exists()) {
 			abort(listener, "Directory 'target' doesn't exist. Don't know where else to look for a deployment!");
 		}
@@ -185,7 +198,7 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 			}
 		});
 		
-		return deployments.length == 0 ? null : deployments[0];
+		return Arrays.asList(deployments);
 	}
 
 	public BuildStepMonitor getRequiredMonitorService() {
