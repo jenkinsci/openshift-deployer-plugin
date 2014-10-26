@@ -2,35 +2,34 @@ package org.jenkinsci.plugins.openshift;
 
 import static org.apache.commons.io.FileUtils.copyFile;
 import static org.apache.commons.io.FileUtils.copyFileToDirectory;
+import static org.apache.commons.io.FileUtils.copyURLToFile;
 import static org.apache.commons.io.FileUtils.forceDelete;
+import static org.jenkinsci.plugins.openshift.Util.findServer;
+import static org.jenkinsci.plugins.openshift.Util.getRootDeploymentFile;
 import static org.jenkinsci.plugins.openshift.Util.isEmpty;
+import static org.jenkinsci.plugins.openshift.Util.isURL;
 import hudson.AbortException;
-import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.BuildListener;
 import hudson.model.Result;
 import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
 import hudson.tasks.BuildStep;
-import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
-import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import javax.net.ssl.SSLSession;
 
-import net.sf.json.JSONNull;
-import net.sf.json.JSONObject;
-
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -40,10 +39,7 @@ import org.eclipse.jgit.lib.TextProgressMonitor;
 import org.eclipse.jgit.transport.JschConfigSessionFactory;
 import org.eclipse.jgit.transport.OpenSshConfig.Host;
 import org.eclipse.jgit.transport.SshSessionFactory;
-import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
 
 import com.jcraft.jsch.Session;
 import com.openshift.client.IApplication;
@@ -59,7 +55,7 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
     private String gearProfile;
     private String appName;
     private String deploymentPath;
-    
+
 	@DataBoundConstructor
     public OpenShiftBuilder(String serverName, String appName, String cartridges,
 			String domain, String gearProfile, String deploymentPath) {
@@ -90,6 +86,10 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
         	abort(listener, "Cartridges are not specified.");
         }
         
+        if (isEmpty(deploymentPath)) {
+        	abort(listener, "Deployment path is not specified.");
+        }
+        
         try {
         	OpenShiftServer server = getServer(serverName);
         	log(listener, "Deploying to OpenShift at http://" + server.getBrokerAddress() + ". Be patient! It might take a minute...");
@@ -103,22 +103,26 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 
         return true;
     }
+	
+	private String getBaseDir(AbstractBuild<?, ?> build) {
+		return build.getWorkspace() + "/openshift";
+	}
 
     private void deployToApp(IApplication app, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException, InvalidRemoteException, TransportException, GitAPIException {
-    	File cloneDir = new File(build.getWorkspace() + "/openshift");
-    	if (cloneDir.exists()) {
-    		FileUtils.deleteDirectory(cloneDir);
+    	File baseDir = new File(getBaseDir(build));
+    	if (baseDir.exists()) {
+    		FileUtils.deleteDirectory(baseDir);
     	}
+    	baseDir.mkdirs();
     	
     	// find deployment unit
-		File targetDir = new File(build.getWorkspace() + "/" + deploymentPath);
-		List<File> deployments = findDeployment(listener, targetDir);
+		List<String> deployments = findDeployments(build, listener);
 		if (deployments.isEmpty()) {
 			abort(listener, "No deployment units found.");
 		}
 
     	// clone repo
-    	log(listener, "Cloning '" + app.getName()  + "' [" + app.getGitUrl() + "] to " + cloneDir.getAbsolutePath());
+    	log(listener, "Cloning '" + app.getName()  + "' [" + app.getGitUrl() + "] to " + baseDir.getAbsolutePath());
     	SshSessionFactory.setInstance(new JschConfigSessionFactory() {
 			@Override
 			protected void configure(Host hc, Session session) {
@@ -127,11 +131,11 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		});
     	Git git = Git.cloneRepository()
         		.setURI(app.getGitUrl())
-        		.setDirectory(cloneDir)
+        		.setDirectory(baseDir)
         		.call();
     	
 		// clean git repo
-    	File[] removeList = cloneDir.listFiles();
+    	File[] removeList = baseDir.listFiles();
 		for(File fileToRemove : removeList) {
 			if (!fileToRemove.getName().equals(".git") && !fileToRemove.getName().equals(".openshift")) {
 				log(listener, "Deleting '" + fileToRemove.getName() + "'");
@@ -140,7 +144,7 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		}
 
 		// copy deployment
-		copyDeploymentUnits(listener, cloneDir, deployments);
+		copyDeploymentPackages(listener, baseDir, deployments);
 		
 		// add directories
 		git.add()
@@ -167,161 +171,62 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 	}
 
 
-	private void copyDeploymentUnits(BuildListener listener, File cloneDir,
-			List<File> deployments) throws AbortException, IOException {
+	private void copyDeploymentPackages(BuildListener listener, File baseDir,
+			List<String> deployments) throws AbortException, IOException {
 		File dest = null;
 		if (cartridges.contains("jbossews")) {
-			dest = new File(cloneDir.getAbsoluteFile() + "/webapps"); // tomcat
+			dest = new File(baseDir.getAbsoluteFile() + "/webapps"); // tomcat
 		} else {
-			dest = new File(cloneDir.getAbsoluteFile() + "/deployments"); // jboss/wildfly
+			dest = new File(baseDir.getAbsoluteFile() + "/deployments"); // jboss/wildfly
 		}
 		
 		if (deployments.size() == 1) {
-			log(listener, "Copying '" + deployments.get(0).getName() + "' to '" + dest.getName() + "/ROOT.war'");
-			copyFile(deployments.get(0), new File(dest.getAbsoluteFile() + "/ROOT.war"));
+			File destFile = getRootDeploymentFile(dest, deployments.get(0));
+			log(listener, "Copying deployment to '" + destFile.getName() + "'");
+			
+			if (isURL(deployments.get(0))) {
+				copyURLToFile(new URL(deployments.get(0)), destFile, 10000, 10000);
+			} else {
+				copyFile(new File(deployments.get(0)), destFile);
+			}
 		} else {
-			for (File deployment : deployments) {
-				log(listener, "Copying '" + deployment.getName() + "' to '" + dest.getName() + "'");
-				copyFileToDirectory(deployment, dest);	
+			for (String deployment : deployments) {
+				log(listener, "Copying '" + FilenameUtils.getName(deployment) + "' to '" + dest.getName() + "'");
+				copyFileToDirectory(new File(deployment), dest);	
 			}
 		}
 	}
-    
-	private List<File> findDeployment(BuildListener listener, File dir) throws AbortException {
-		if (!dir.exists()) {
-			abort(listener, "Directory 'target' doesn't exist. Don't know where else to look for a deployment!");
+
+	private List<String> findDeployments(AbstractBuild<?,?> build, BuildListener listener) throws AbortException {
+		List<String> deployments = new ArrayList<String>();
+		
+		if (isURL(deploymentPath)) {
+			deployments.add(deploymentPath);
+			
+		} else {
+			File dir = new File(build.getWorkspace() + "/" + deploymentPath);
+			if (!dir.exists()) {
+				abort(listener, "Directory 'target' doesn't exist. Don't know where else to look for a deployment!");
+			}
+			
+			File[] deploymentFiles = dir.listFiles(new FilenameFilter() {
+				public boolean accept(File dir, String name) {
+					return name.toLowerCase().endsWith(".ear") || name.toLowerCase().endsWith(".war");
+				}
+			});
+			
+			for (File file : deploymentFiles) {
+				deployments.add(file.getAbsolutePath());
+			}
 		}
 		
-		File[] deployments = dir.listFiles(new FilenameFilter() {
-			public boolean accept(File dir, String name) {
-				return name.endsWith(".ear") || name.endsWith(".war");
-			}
-		});
-		
-		return Arrays.asList(deployments);
+		return deployments;
 	}
 
 	public BuildStepMonitor getRequiredMonitorService() {
         return BuildStepMonitor.BUILD;
     }
    
-    @Extension
-    public static class DescriptorImpl extends BuildStepDescriptor<Builder> {
-        private List<OpenShiftServer> servers;
-        private String publicKeyPath = System.getProperty("user.home") + "/.ssh/id_rsa.pub";
-        
-        public DescriptorImpl() {
-            super(OpenShiftBuilder.class);
-            load();
-        }
-
-        @Override
-        public boolean configure(StaplerRequest req, JSONObject json)
-                throws FormException {
-            Object s = json.get("servers");
-            if (!JSONNull.getInstance().equals(s)) {
-                servers = req.bindJSONToList(OpenShiftServer.class, s);
-            } else {
-            	servers = null;
-            }
-            save();
-            return super.configure(req, json);
-        }
-
-        @Override
-        public String getDisplayName() {
-            return "Deploy to OpenShift";
-        }
-
-        @Override
-        public boolean isApplicable(Class<? extends AbstractProject> jobType) {
-            return true;
-        }
-
-		public List<OpenShiftServer> getServers() {
-			return servers;
-		}
-		
-		public String getPublicKeyPath() {
-			return publicKeyPath;
-		}
-
-		public FormValidation doCheckLogin(
-				@QueryParameter("brokerAddress") final String brokerAddress,
-		        @QueryParameter("username") final String username, 
-		        @QueryParameter("password") final String password) {
-			OpenShiftV2Client client = new OpenShiftV2Client(brokerAddress, username, password);
-			ValidationResult result = client.validate();
-			if (result.isValid()) {
-				return FormValidation.ok("Success");
-			} else {
-				return FormValidation.error(result.getMessage());
-			}
-		}
-		
-		public FormValidation doUploadSSHKeys(
-				@QueryParameter("brokerAddress") final String brokerAddress,
-		        @QueryParameter("username") final String username, 
-		        @QueryParameter("password") final String password,
-		        @QueryParameter("publicKeyPath") final String publicKeyPath) {
-			OpenShiftV2Client client = new OpenShiftV2Client(brokerAddress, username, password);
-			try {
-				if (publicKeyPath == null) {
-					return FormValidation.error("Specify the path to SSH public key.");
-				}
-				File file = new File(publicKeyPath);
-				
-				if (!file.exists()) {
-					return FormValidation.error("Specified SSH public key doesn't exist: " + publicKeyPath);	
-				}
-				
-				if (client.sshKeyExists(file)) {
-					return FormValidation.ok("SSH public key already exists.");
-					
-				} else {
-					client.uploadSSHKey(file);
-					return FormValidation.ok("SSH Public key uploaded successfully.");
-				}
-			} catch (IOException e) {
-				return FormValidation.error(e.getMessage());
-			}
-		}
-
-		public ListBoxModel doFillServerNameItems() {
-			ListBoxModel items = new ListBoxModel();
-
-			if (servers != null) {
-				for (OpenShiftServer server : servers) {
-					items.add(server.getName(), server.getName());
-				}
-			}
-
-			return items;
-		}
-		
-		public ListBoxModel doFillGearProfileItems(@QueryParameter("serverName") final String serverName) {
-			ListBoxModel items = new ListBoxModel();
-			OpenShiftServer server = findServer(serverName, servers);
-			OpenShiftV2Client client = new OpenShiftV2Client(server.getBrokerAddress(), server.getUsername(), server.getPassword());
-			for (String gearProfile : client.getGearProfiles()) {
-				items.add(gearProfile, gearProfile);
-			}
-			
-			return items;
-		}
-		
-		public ListBoxModel doFillDomainItems(@QueryParameter("serverName") final String serverName) {
-			ListBoxModel items = new ListBoxModel();
-			OpenShiftServer server = findServer(serverName, servers);
-			OpenShiftV2Client client = new OpenShiftV2Client(server.getBrokerAddress(), server.getUsername(), server.getPassword());
-			for (String domain : client.getDomains()) {
-				items.add(domain, domain);
-			}
-			
-			return items;
-		}
-    }
-
 	public String getServerName() {
 		return serverName;
 	}
@@ -346,6 +251,20 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		return deploymentPath;
 	}
 
+	private OpenShiftServer getServer(String selectedServer) {
+        List<OpenShiftServer> servers = ((OpenShiftDescriptor) getDescriptor()).getServers();
+        return findServer(selectedServer, servers);
+    }
+	
+	private void abort(BuildListener listener, String msg) throws AbortException {
+    	listener.getLogger().println("[OPENSHIFT] FAIL: " + msg);
+    	throw new AbortException();
+	}
+	
+	private void log(BuildListener listener, String msg) throws AbortException {
+    	listener.getLogger().println("[OPENSHIFTÏ] " + msg);
+	}
+	
 	public static class TrustingISSLCertificateCallback implements ISSLCertificateCallback {
 		public boolean allowCertificate(
 				java.security.cert.X509Certificate[] certs) {
@@ -355,29 +274,5 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		public boolean allowHostname(String hostname, SSLSession session) {
 			return true;
 		}
-	}
-	
-	private OpenShiftServer getServer(String selectedServer) {
-        List<OpenShiftServer> servers = ((DescriptorImpl) getDescriptor()).getServers();
-        return findServer(selectedServer, servers);
-    }
-	
-	private static OpenShiftServer findServer(String selectedServer, List<OpenShiftServer> servers) {
-        for (OpenShiftServer server : servers) {
-            if(server.getName().equals(selectedServer)) {
-                return server;
-            }
-        }
-        
-        return null;
-	}
-	
-	private void abort(BuildListener listener, String msg) throws AbortException {
-    	listener.getLogger().println("[OPENSHIFT] FAIL: " + msg);
-    	throw new AbortException();
-	}
-	
-	private void log(BuildListener listener, String msg) throws AbortException {
-    	listener.getLogger().println("[OPENSHIFTÏ] " + msg);
 	}
 }

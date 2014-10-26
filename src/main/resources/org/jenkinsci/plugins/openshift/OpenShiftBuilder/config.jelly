@@ -22,7 +22,7 @@
 			<f:select />
 	    </f:entry>
 	    
-		<f:entry title="Deployment Path" field="deploymentPath" description="Path to the directory containing the deployment packages (war or ear)"> 
+		<f:entry title="Deployment Packages(s)" field="deploymentPath" description="Directory or URL of the deployment packages (WAR or EAR)"> 
 			<f:textbox default="target/" />
 	    </f:entry>
     </f:advanced>
