@@ -2,12 +2,12 @@ package org.jenkinsci.plugins.openshift;
 
 import static org.apache.commons.io.FileUtils.copyFile;
 import static org.apache.commons.io.FileUtils.copyFileToDirectory;
-import static org.apache.commons.io.FileUtils.copyURLToFile;
 import static org.apache.commons.io.FileUtils.forceDelete;
-import static org.jenkinsci.plugins.openshift.Util.findServer;
-import static org.jenkinsci.plugins.openshift.Util.getRootDeploymentFile;
-import static org.jenkinsci.plugins.openshift.Util.isEmpty;
-import static org.jenkinsci.plugins.openshift.Util.isURL;
+import static org.jenkinsci.plugins.openshift.Utils.copyURLToFile;
+import static org.jenkinsci.plugins.openshift.Utils.findServer;
+import static org.jenkinsci.plugins.openshift.Utils.getRootDeploymentFile;
+import static org.jenkinsci.plugins.openshift.Utils.isEmpty;
+import static org.jenkinsci.plugins.openshift.Utils.isURL;
 import hudson.AbortException;
 import hudson.Launcher;
 import hudson.model.BuildListener;
@@ -182,11 +182,12 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		
 		if (deployments.size() == 1) {
 			File destFile = getRootDeploymentFile(dest, deployments.get(0));
-			log(listener, "Copying deployment to '" + destFile.getName() + "'");
-			
+
 			if (isURL(deployments.get(0))) {
+				log(listener, "Downloading deployment to '" + destFile.getName() + "'");
 				copyURLToFile(new URL(deployments.get(0)), destFile, 10000, 10000);
 			} else {
+				log(listener, "Copying deployment '" + FilenameUtils.getName(deployments.get(0)) + "'to '" + destFile.getName() + "'");
 				copyFile(new File(deployments.get(0)), destFile);
 			}
 		} else {
@@ -262,7 +263,7 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 	}
 	
 	private void log(BuildListener listener, String msg) throws AbortException {
-    	listener.getLogger().println("[OPENSHIFTÏ] " + msg);
+    	listener.getLogger().println("[OPENSHIFT] " + msg);
 	}
 	
 	public static class TrustingISSLCertificateCallback implements ISSLCertificateCallback {

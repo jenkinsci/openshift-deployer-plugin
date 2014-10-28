@@ -1,6 +1,6 @@
 package org.jenkinsci.plugins.openshift;
 
-import static org.jenkinsci.plugins.openshift.Util.findServer;
+import static org.jenkinsci.plugins.openshift.Utils.findServer;
 import hudson.Extension;
 import hudson.model.AbstractProject;
 import hudson.tasks.BuildStepDescriptor;

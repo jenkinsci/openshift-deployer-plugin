@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>org.jenkins-ci.plugins</groupId>
@@ -8,7 +9,7 @@
 
 	<groupId>org.jenkins-ci.plugins</groupId>
 	<artifactId>openshift-deployer</artifactId>
-	<version>1.0.1-SNAPSHOT</version>
+	<version>1.0.0-SNAPSHOT</version>
 	<packaging>hpi</packaging>
 	<name>OpenShift Deployer Plugin</name>
 	<description>This plugin enable Jenkins jobs to create containers(gears) on OpenShift and deploy applications to it</description>
@@ -22,10 +23,9 @@
 	</developers>
 
 	<scm>
-		<connection>scm:git:git://github.com/siamaksade/openshift-jenkins-plugin.git</connection>
-		<developerConnection>scm:git:git@github.com:siamaksade/openshift-jenkins-plugin.git</developerConnection>
-		<url>https://github.com/siamaksade/openshift-jenkins-plugin</url>
-		<tag>HEAD</tag>
+        <connection>scm:git:ssh://github.com/jenkinsci/openshift-jenkins-plugin.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openshift-jenkins-plugin.git</developerConnection>
+        <url>https://github.com/jenkinsci/openshift-jenkins-plugin</url>
 	</scm>
 
 	<repositories>
@@ -41,7 +41,7 @@
 			<url>http://repo.jenkins-ci.org/public/</url>
 		</pluginRepository>
 	</pluginRepositories>
-	
+
 	<properties>
 		<openshift-client.version>2.6.2.Final</openshift-client.version>
 		<jgit.version>3.5.1.201410131835-r</jgit.version>
@@ -63,7 +63,13 @@
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
-			<version>2.4</version>
+			<version>1.4</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.3.2</version>
 		</dependency>
 	</dependencies>
 </project>
