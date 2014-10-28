@@ -22,9 +22,9 @@
 	</developers>
 
 	<scm>
-        <connection>scm:git:ssh://github.com/jenkinsci/openshift-jenkins-plugin.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openshift-jenkins-plugin.git</developerConnection>
-        <url>https://github.com/jenkinsci/openshift-jenkins-plugin</url>
+        <connection>scm:git:ssh://github.com/jenkinsci/openshift-deployer-plugin.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openshift-deployer-plugin.git</developerConnection>
+        <url>https://github.com/jenkinsci/openshift-deployer-plugin</url>
 	</scm>
 
 	<repositories>
