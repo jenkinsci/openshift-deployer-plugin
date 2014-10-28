@@ -7,7 +7,6 @@
 		<version>1.532.3</version>
 	</parent>
 
-	<groupId>org.jenkins-ci.plugins</groupId>
 	<artifactId>openshift-deployer</artifactId>
 	<version>1.0.1</version>
 	<packaging>hpi</packaging>
