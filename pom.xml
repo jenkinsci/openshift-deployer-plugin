@@ -22,9 +22,9 @@
 	</developers>
 
 	<scm>
-        <connection>scm:git:ssh://github.com/jenkinsci/openshift-deployer-plugin.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openshift-deployer-plugin.git</developerConnection>
-        <url>https://github.com/jenkinsci/openshift-deployer-plugin</url>
+		<connection>scm:git:ssh://github.com/jenkinsci/openshift-deployer-plugin.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/jenkinsci/openshift-deployer-plugin.git</developerConnection>
+		<url>https://github.com/jenkinsci/openshift-deployer-plugin</url>
 	</scm>
 
 	<repositories>
@@ -71,4 +71,16 @@
 			<version>3.3.2</version>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<configuration>
+					<tagNameFormat>v@{project.version}</tagNameFormat>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 </project>
