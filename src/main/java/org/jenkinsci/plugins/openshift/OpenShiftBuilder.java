@@ -91,12 +91,25 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
         }
         
         try {
+        	// find deployment unit
+    		List<String> deployments = findDeployments(build, listener);
+    		
+    		if (deployments.isEmpty()) {
+    			abort(listener, "No packages found to deploy to OpenShift.");
+    		} else {
+    			log(listener, "Deployments found: " + deployments);
+    		}
+        	
         	OpenShiftServer server = getServer(serverName);
         	log(listener, "Deploying to OpenShift at http://" + server.getBrokerAddress() + ". Be patient! It might take a minute...");
+        	
         	OpenShiftV2Client client = new OpenShiftV2Client(server.getBrokerAddress(), server.getUsername(), server.getPassword());
         	IApplication app = client.getOrCreateApp(appName, domain, Arrays.asList(cartridges.split(" ")), gearProfile);
-        	deployToApp(app, build, listener);
+        	deployToApp(deployments, app, build, listener);
     		
+        } catch(AbortException e) {
+        	throw e;
+        	
         } catch(Exception e) {
         	abort(listener, e.getMessage());
         }
@@ -108,19 +121,17 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		return build.getWorkspace() + "/openshift";
 	}
 
-    private void deployToApp(IApplication app, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException, InvalidRemoteException, TransportException, GitAPIException {
+    private void deployToApp(List<String> deployments, IApplication app, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException, InvalidRemoteException, TransportException, GitAPIException {
+    	if (deployments == null || deployments.isEmpty()) {
+    		abort(listener, "Deployment package list is empty.");
+    	}
+    	
     	File baseDir = new File(getBaseDir(build));
     	if (baseDir.exists()) {
     		FileUtils.deleteDirectory(baseDir);
     	}
     	baseDir.mkdirs();
     	
-    	// find deployment unit
-		List<String> deployments = findDeployments(build, listener);
-		if (deployments.isEmpty()) {
-			abort(listener, "No deployment units found.");
-		}
-
     	// clone repo
     	log(listener, "Cloning '" + app.getName()  + "' [" + app.getGitUrl() + "] to " + baseDir.getAbsolutePath());
     	SshSessionFactory.setInstance(new JschConfigSessionFactory() {
@@ -187,7 +198,7 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 				log(listener, "Downloading deployment to '" + destFile.getName() + "'");
 				copyURLToFile(new URL(deployments.get(0)), destFile, 10000, 10000);
 			} else {
-				log(listener, "Copying deployment '" + FilenameUtils.getName(deployments.get(0)) + "'to '" + destFile.getName() + "'");
+				log(listener, "Copying deployment '" + FilenameUtils.getName(deployments.get(0)) + "' to '" + destFile.getName() + "'");
 				copyFile(new File(deployments.get(0)), destFile);
 			}
 		} else {
@@ -207,7 +218,7 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		} else {
 			File dir = new File(build.getWorkspace() + "/" + deploymentPath);
 			if (!dir.exists()) {
-				abort(listener, "Directory 'target' doesn't exist. Don't know where else to look for a deployment!");
+				abort(listener, "Directory 'target' doesn't exist. No deployments found!");
 			}
 			
 			File[] deploymentFiles = dir.listFiles(new FilenameFilter() {
@@ -258,7 +269,7 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
     }
 	
 	private void abort(BuildListener listener, String msg) throws AbortException {
-    	listener.getLogger().println("[OPENSHIFT] FAIL: " + msg);
+    	listener.getLogger().println("[OPENSHIFT] ERROR: " + msg);
     	throw new AbortException();
 	}
 	
