@@ -39,6 +39,7 @@ import org.eclipse.jgit.lib.TextProgressMonitor;
 import org.eclipse.jgit.transport.JschConfigSessionFactory;
 import org.eclipse.jgit.transport.OpenSshConfig.Host;
 import org.eclipse.jgit.transport.SshSessionFactory;
+import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.jcraft.jsch.Session;
@@ -213,7 +214,11 @@ public class OpenShiftBuilder extends Builder implements BuildStep {
 		List<String> deployments = new ArrayList<String>();
 		
 		if (isURL(deploymentPath)) {
-			deployments.add(deploymentPath);
+			try {
+				deployments.add(TokenMacro.expand(build, listener, deploymentPath));
+			} catch (Exception e) {
+				throw new AbortException(e.getMessage());
+			}
 			
 		} else {
 			File dir = new File(build.getWorkspace() + "/" + deploymentPath);
