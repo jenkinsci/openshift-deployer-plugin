@@ -5,7 +5,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
  */
-public class OpenShiftServer {
+public class Server {
 	private String name;
 	private String brokerAddress;
 	private String username;
@@ -13,7 +13,7 @@ public class OpenShiftServer {
 
 	
 	@DataBoundConstructor
-	public OpenShiftServer(String name, String brokerAddress, String username,
+	public Server(String name, String brokerAddress, String username,
 			String password) {
 		this.name = name;
 		this.brokerAddress = brokerAddress;
@@ -36,5 +36,4 @@ public class OpenShiftServer {
 	public String getPassword() {
 		return password;
 	}
-
 }

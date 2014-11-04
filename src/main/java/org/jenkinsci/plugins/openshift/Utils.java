@@ -1,6 +1,10 @@
 package org.jenkinsci.plugins.openshift;
 
+import static java.util.Collections.EMPTY_LIST;
 import static org.apache.commons.io.FilenameUtils.getExtension;
+import hudson.AbortException;
+import hudson.model.BuildListener;
+import hudson.model.Hudson;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -50,8 +54,8 @@ public final class Utils {
 		return str.startsWith("http://") || str.startsWith("https://");
 	}
 	
-	public static OpenShiftServer findServer(String selectedServer, List<OpenShiftServer> servers) {
-        for (OpenShiftServer server : servers) {
+	public static Server findServer(String selectedServer) {
+        for (Server server : getServers()) {
             if(server.getName().equals(selectedServer)) {
                 return server;
             }
@@ -96,5 +100,25 @@ public final class Utils {
 			}
 		}
 		return new FileOutputStream(file, false);
+	}
+	
+	public static void abort(BuildListener listener, String msg) throws AbortException {
+    	listener.getLogger().println("[OPENSHIFT] ERROR: " + msg);
+    	throw new AbortException();
+	}
+	
+	public static void log(BuildListener listener, String msg) throws AbortException {
+    	listener.getLogger().println("[OPENSHIFT] " + msg);
+	}
+	
+	public static String getBuildStepName(String name) {
+		return "OpenShift: " + name;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static List<Server> getServers() {
+		DeployApplication.DeployApplicationDescriptor descriptor = (DeployApplication.DeployApplicationDescriptor)Hudson.getInstance().getDescriptor(DeployApplication.class);
+		List<Server> servers = descriptor.getServers();
+		return servers == null ? (List<Server>) EMPTY_LIST : servers;
 	}
 }

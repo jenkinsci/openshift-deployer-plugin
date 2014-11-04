@@ -5,7 +5,6 @@ import static org.jenkinsci.plugins.openshift.Utils.isEmpty;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -14,12 +13,12 @@ import javax.net.ssl.SSLSession;
 import com.openshift.client.IApplication;
 import com.openshift.client.IDomain;
 import com.openshift.client.IGearProfile;
-import com.openshift.client.IOpenShiftSSHKey;
-import com.openshift.client.SSHPublicKey;
 import com.openshift.client.IHttpClient.ISSLCertificateCallback;
 import com.openshift.client.IOpenShiftConnection;
+import com.openshift.client.IOpenShiftSSHKey;
 import com.openshift.client.IUser;
 import com.openshift.client.OpenShiftConnectionFactory;
+import com.openshift.client.SSHPublicKey;
 import com.openshift.client.cartridge.ICartridge;
 import com.openshift.client.cartridge.IEmbeddableCartridge;
 import com.openshift.client.cartridge.IStandaloneCartridge;
@@ -64,12 +63,12 @@ public class OpenShiftV2Client {
 		IUser user = conn.getUser();
 		IDomain domain = user.getDomain(domainName);
 		
-		// create domain if doesn't exist
-		if (domain == null) {
+		if (domain == null) { // check if domain exists
 			throw new OpenShiftException("Domain '" + domainName + "' doesn't exist.");
 		}
 		
 		IApplication app = domain.getApplicationByName(appName);
+		
 		// create app if doesn't exist
 		if (app == null) {
 			if (isEmpty(gearProfile)) {
@@ -83,6 +82,20 @@ public class OpenShiftV2Client {
 			app.addEmbeddableCartridges(getEmbeddedCartridge(cartridges));
 			app.waitForAccessible(5*60*1000); // 5 min
 		}
+		
+		return app;
+	}
+	
+	public IApplication deleteApp(String appName, String domainName) throws OpenShiftException {
+		IUser user = conn.getUser();
+		IDomain domain = user.getDomain(domainName);
+		
+		if (domain == null) { // check if domain exists
+			throw new OpenShiftException("Domain '" + domainName + "' doesn't exist.");
+		}
+		
+		IApplication app = domain.getApplicationByName(appName);
+		app.destroy();
 		
 		return app;
 	}
@@ -181,11 +194,6 @@ public class OpenShiftV2Client {
 		return domains;
 	}
 
-	public static void main(String[] args) {
-		OpenShiftV2Client client = new OpenShiftV2Client("broker.example.com", "demo", "demo");
-		client.getOrCreateApp("app1", "smx", Arrays.asList("jbosseap-6"), "small");
-	}
-	
 	static class ValidationResult {
 		private boolean valid;
 		private String message;
