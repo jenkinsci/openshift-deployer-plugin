@@ -50,6 +50,10 @@ public class DeleteApplication extends Builder implements BuildStep {
 
         try {
         	Server server = findServer(serverName);
+    		if (server == null) {
+        		abort(listener, "No OpenShift server is selected or none are defined in Jenkins Configuration.");
+        	}
+
         	OpenShiftV2Client client = new OpenShiftV2Client(server.getBrokerAddress(), server.getUsername(), server.getPassword());
         	
         	String targetDomain = domain;

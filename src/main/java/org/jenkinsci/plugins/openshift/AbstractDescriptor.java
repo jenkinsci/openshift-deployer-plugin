@@ -26,6 +26,11 @@ public abstract class AbstractDescriptor extends BuildStepDescriptor<Builder> {
 	public ListBoxModel doFillDomainItems(@QueryParameter("serverName") final String serverName) {
 		ListBoxModel items = new ListBoxModel();
 		Server server = findServer(serverName);
+		
+		if (server == null) {
+			return items;
+		}
+		
 		OpenShiftV2Client client = new OpenShiftV2Client(server.getBrokerAddress(), server.getUsername(), server.getPassword());
 		for (String domain : client.getDomains()) {
 			items.add(domain, domain);
@@ -36,7 +41,7 @@ public abstract class AbstractDescriptor extends BuildStepDescriptor<Builder> {
 	
 	public ListBoxModel doFillServerNameItems() {
 		ListBoxModel items = new ListBoxModel();
-
+		
 		for (Server server : Utils.getServers()) {
 			items.add(server.getName(), server.getName());
 		}

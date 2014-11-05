@@ -108,7 +108,11 @@ public class DeployApplication extends Builder implements BuildStep {
     			log(listener, "Deployments found: " + deployments);
     		}
         	
-        	Server server = findServer(serverName);
+    		Server server = findServer(serverName);
+    		if (server == null) {
+        		abort(listener, "No OpenShift server is selected or none are defined in Jenkins Configuration.");
+        	}
+        	
         	log(listener, "Deploying to OpenShift at http://" + server.getBrokerAddress() + ". Be patient! It might take a minute...");
         	
         	OpenShiftV2Client client = new OpenShiftV2Client(server.getBrokerAddress(), server.getUsername(), server.getPassword());
@@ -304,7 +308,7 @@ public class DeployApplication extends Builder implements BuildStep {
 	public static class DeployApplicationDescriptor extends AbstractDescriptor {
 		private final String DEFAULT_PUBLICKEY_PATH = System.getProperty("user.home") + "/.ssh/id_rsa.pub";
 
-		private List<Server> servers;
+		private List<Server> servers = new ArrayList<Server>();
 	    
 	    public DeployApplicationDescriptor() {
 	        super(DeployApplication.class);
@@ -382,6 +386,11 @@ public class DeployApplication extends Builder implements BuildStep {
 		public ListBoxModel doFillGearProfileItems(@QueryParameter("serverName") final String serverName) {
 			ListBoxModel items = new ListBoxModel();
 			Server server = findServer(serverName);
+			
+			if (server == null) {
+				return items;
+			}
+			
 			OpenShiftV2Client client = new OpenShiftV2Client(server.getBrokerAddress(), server.getUsername(), server.getPassword());
 			for (String gearProfile : client.getGearProfiles()) {
 				items.add(gearProfile, gearProfile);
