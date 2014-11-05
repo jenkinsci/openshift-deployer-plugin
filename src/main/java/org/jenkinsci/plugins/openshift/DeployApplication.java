@@ -374,6 +374,7 @@ public class DeployApplication extends Builder implements BuildStep {
 					return FormValidation.ok("SSH Public key uploaded successfully.");
 				}
 			} catch (IOException e) {
+				e.printStackTrace();
 				return FormValidation.error(e.getMessage());
 			}
 		}

@@ -10,6 +10,8 @@ import java.util.List;
 
 import javax.net.ssl.SSLSession;
 
+import org.apache.commons.lang3.RandomStringUtils;
+
 import com.openshift.client.IApplication;
 import com.openshift.client.IDomain;
 import com.openshift.client.IGearProfile;
@@ -114,7 +116,14 @@ public class OpenShiftV2Client {
 	
 	public void uploadSSHKey(File publicKey) throws IOException {
 		SSHPublicKey newKey = new SSHPublicKey(publicKey);
-		conn.getUser().addSSHKey("jenkins-ci-" + InetAddress.getLocalHost().getHostName(), newKey);
+		String address = null;
+		try {
+			address = InetAddress.getLocalHost().getHostName();
+		} catch (Exception e) {
+			// due to http://bugs.java.com/bugdatabase/view_bug.do?bug_id=7180557
+			address = RandomStringUtils.randomAlphabetic(16); 
+		}
+		conn.getUser().addSSHKey("jenkins-ci-" + address, newKey);
 	}
 
 	private IGearProfile getGearProfile(String gearProfile, String domainName) {
