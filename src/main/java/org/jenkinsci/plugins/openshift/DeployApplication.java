@@ -126,7 +126,7 @@ public class DeployApplication extends Builder implements BuildStep {
         		List<String> domains = client.getDomains();
         		
         		if (domains.size() > 1) {
-        			abort(listener, "Specify the user doamin. " + domains.size() + " domains found on the account.");
+        			abort(listener, "Specify the user domain. " + domains.size() + " domains found on the account.");
         		} else if (domains.isEmpty()) {
         			abort(listener, "No domains exist. Create a domain first.");
         		}
@@ -135,7 +135,7 @@ public class DeployApplication extends Builder implements BuildStep {
         	}
         	
         	IApplication app;
-        	if (isEmpty(getEnvironmentVariables())) {
+        	if (isEmpty(environmentVariables)) {
         		app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile);
         	} else {
         		Map<String, String> mapOfEnvironmentVariables = new HashMap<String,String>();

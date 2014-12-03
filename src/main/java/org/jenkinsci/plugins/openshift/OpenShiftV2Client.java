@@ -85,11 +85,11 @@ public class OpenShiftV2Client {
 			
 			app.addEmbeddableCartridges(getEmbeddedCartridge(cartridges));
 			
-			if (environmentVariables != null) {
-				app.addEnvironmentVariables(environmentVariables);
-			}
-			
 			app.waitForAccessible(5*60*1000); // 5 min
+		}
+		
+		if (environmentVariables != null) {
+			app.addEnvironmentVariables(environmentVariables);
 		}
 		
 		return app;
