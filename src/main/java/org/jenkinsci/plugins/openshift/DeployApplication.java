@@ -29,7 +29,9 @@ import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.SSLSession;
 
@@ -67,16 +69,18 @@ public class DeployApplication extends Builder implements BuildStep {
     private String gearProfile;
     private String appName;
     private String deploymentPath;
+    private String environmentVariables;
 
 	@DataBoundConstructor
     public DeployApplication(String serverName, String appName, String cartridges,
-			String domain, String gearProfile, String deploymentPath) {
+			String domain, String gearProfile, String deploymentPath, String environmentVariables) {
 		this.serverName = serverName;
 		this.appName = appName;
 		this.cartridges = cartridges;
 		this.domain = domain;
 		this.gearProfile = gearProfile;
 		this.deploymentPath = deploymentPath;
+		this.environmentVariables = environmentVariables;
 	}
 
 
@@ -130,7 +134,21 @@ public class DeployApplication extends Builder implements BuildStep {
         		targetDomain = domains.get(0);
         	}
         	
-        	IApplication app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile);
+        	IApplication app;
+        	if (isEmpty(getEnvironmentVariables())) {
+        		app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile);
+        	} else {
+        		Map<String, String> mapOfEnvironmentVariables = new HashMap<String,String>();
+        		for (String environmentVariable : Arrays.asList(environmentVariables.split(" "))) {
+        			if (environmentVariable.contains("=")) {
+        				String[] parts = environmentVariable.split("=");
+            			mapOfEnvironmentVariables.put(parts[0], parts[1]);	
+        			} else {
+                		abort(listener, "Invalid environment variable: " + environmentVariable);        				
+        			}
+        		}
+        		app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, mapOfEnvironmentVariables);;
+        	}
         	deployToApp(deployments, app, build, listener);
     		
         } catch(AbortException e) {
@@ -291,6 +309,10 @@ public class DeployApplication extends Builder implements BuildStep {
 	
 	public String getDeploymentPath() {
 		return deploymentPath;
+	}
+	
+	public String getEnvironmentVariables() {
+		return environmentVariables;
 	}
 
 	public static class TrustingISSLCertificateCallback implements ISSLCertificateCallback {

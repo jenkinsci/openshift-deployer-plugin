@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.SSLSession;
 
@@ -60,8 +61,11 @@ public class OpenShiftV2Client {
 		return new ValidationResult(true, "ok");
 	}
 	
-	
 	public IApplication getOrCreateApp(String appName, String domainName, List<String> cartridges, String gearProfile) throws OpenShiftException {
+		return getOrCreateApp(appName, domainName, cartridges, gearProfile, null);
+	}
+	
+	public IApplication getOrCreateApp(String appName, String domainName, List<String> cartridges, String gearProfile, Map<String, String> environmentVariables) throws OpenShiftException {
 		IUser user = conn.getUser();
 		IDomain domain = user.getDomain(domainName);
 		
@@ -77,11 +81,14 @@ public class OpenShiftV2Client {
 				app = domain.createApplication(appName, getStandaloneCartridge(cartridges));
 			} else {
 				app = domain.createApplication(appName, getStandaloneCartridge(cartridges), getGearProfile(gearProfile, domainName));
-			}
-			
-			
+			}			
 			
 			app.addEmbeddableCartridges(getEmbeddedCartridge(cartridges));
+			
+			if (environmentVariables != null) {
+				app.addEnvironmentVariables(environmentVariables);
+			}
+			
 			app.waitForAccessible(5*60*1000); // 5 min
 		}
 		
