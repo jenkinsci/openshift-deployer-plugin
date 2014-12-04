@@ -7,7 +7,7 @@
 	</parent>
 
 	<artifactId>openshift-deployer</artifactId>
-	<version>1.0.5-SNAPSHOT</version>
+	<version>1.0.6-SNAPSHOT</version>
 	<packaging>hpi</packaging>
 	
 	<name>OpenShift Deployer Plugin</name>
@@ -19,6 +19,11 @@
 			<id>siamaksade</id>
 			<name>Siamak Sadeghianfar</name>
 			<email>ssadeghi@redhat.com</email>
+		</developer>
+		<developer>
+			<id>enham</id>
+			<name>Evong Nham</id>
+			<email>enham@redhat.com</email>
 		</developer>
 	</developers>
 

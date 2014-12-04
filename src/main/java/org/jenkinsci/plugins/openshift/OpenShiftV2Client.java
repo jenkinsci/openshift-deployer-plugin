@@ -104,7 +104,9 @@ public class OpenShiftV2Client {
 		}
 		
 		IApplication app = domain.getApplicationByName(appName);
-		app.destroy();
+		if (app != null) {
+			app.destroy();
+		}
 		
 		return app;
 	}
