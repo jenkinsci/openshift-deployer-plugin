@@ -13,6 +13,7 @@ import javax.net.ssl.SSLSession;
 
 import org.apache.commons.lang3.RandomStringUtils;
 
+import com.openshift.client.ApplicationScale;
 import com.openshift.client.IApplication;
 import com.openshift.client.IDomain;
 import com.openshift.client.IGearProfile;
@@ -61,11 +62,7 @@ public class OpenShiftV2Client {
 		return new ValidationResult(true, "ok");
 	}
 	
-	public IApplication getOrCreateApp(String appName, String domainName, List<String> cartridges, String gearProfile) throws OpenShiftException {
-		return getOrCreateApp(appName, domainName, cartridges, gearProfile, null);
-	}
-	
-	public IApplication getOrCreateApp(String appName, String domainName, List<String> cartridges, String gearProfile, Map<String, String> environmentVariables) throws OpenShiftException {
+	public IApplication getOrCreateApp(String appName, String domainName, List<String> cartridges, String gearProfile, Map<String, String> environmentVariables, Boolean autoScale) throws OpenShiftException {
 		IUser user = conn.getUser();
 		IDomain domain = user.getDomain(domainName);
 		
@@ -77,10 +74,11 @@ public class OpenShiftV2Client {
 		
 		// create app if doesn't exist
 		if (app == null) {
+			ApplicationScale appScale = autoScale.booleanValue() ? ApplicationScale.SCALE : ApplicationScale.NO_SCALE;
 			if (isEmpty(gearProfile)) {
-				app = domain.createApplication(appName, getStandaloneCartridge(cartridges));
+				app = domain.createApplication(appName, getStandaloneCartridge(cartridges), appScale);
 			} else {
-				app = domain.createApplication(appName, getStandaloneCartridge(cartridges), getGearProfile(gearProfile, domainName));
+				app = domain.createApplication(appName, getStandaloneCartridge(cartridges), appScale, getGearProfile(gearProfile, domainName));
 			}			
 			
 			app.addEmbeddableCartridges(getEmbeddedCartridge(cartridges));

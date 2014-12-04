@@ -70,10 +70,12 @@ public class DeployApplication extends Builder implements BuildStep {
     private String appName;
     private String deploymentPath;
     private String environmentVariables;
+    private Boolean autoScale;
 
 	@DataBoundConstructor
     public DeployApplication(String serverName, String appName, String cartridges,
-			String domain, String gearProfile, String deploymentPath, String environmentVariables) {
+			String domain, String gearProfile, String deploymentPath, String environmentVariables,
+			Boolean autoScale) {
 		this.serverName = serverName;
 		this.appName = appName;
 		this.cartridges = cartridges;
@@ -81,6 +83,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		this.gearProfile = gearProfile;
 		this.deploymentPath = deploymentPath;
 		this.environmentVariables = environmentVariables;
+		this.autoScale = autoScale;
 	}
 
 
@@ -136,7 +139,7 @@ public class DeployApplication extends Builder implements BuildStep {
         	
         	IApplication app;
         	if (isEmpty(environmentVariables)) {
-        		app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile);
+        		app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, null, autoScale);
         	} else {
         		Map<String, String> mapOfEnvironmentVariables = new HashMap<String,String>();
         		for (String environmentVariable : Arrays.asList(environmentVariables.split(" "))) {
@@ -147,7 +150,7 @@ public class DeployApplication extends Builder implements BuildStep {
                 		abort(listener, "Invalid environment variable: " + environmentVariable);        				
         			}
         		}
-        		app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, mapOfEnvironmentVariables);;
+        		app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, mapOfEnvironmentVariables, autoScale);;
         	}
         	deployToApp(deployments, app, build, listener);
     		
@@ -313,6 +316,10 @@ public class DeployApplication extends Builder implements BuildStep {
 	
 	public String getEnvironmentVariables() {
 		return environmentVariables;
+	}
+	
+	public Boolean autoScale() {
+		return autoScale;
 	}
 
 	public static class TrustingISSLCertificateCallback implements ISSLCertificateCallback {
