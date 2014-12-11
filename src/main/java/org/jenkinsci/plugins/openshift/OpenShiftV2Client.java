@@ -7,11 +7,13 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.SSLSession;
 
 import org.apache.commons.lang3.RandomStringUtils;
 
+import com.openshift.client.ApplicationScale;
 import com.openshift.client.IApplication;
 import com.openshift.client.IDomain;
 import com.openshift.client.IGearProfile;
@@ -60,8 +62,7 @@ public class OpenShiftV2Client {
 		return new ValidationResult(true, "ok");
 	}
 	
-	
-	public IApplication getOrCreateApp(String appName, String domainName, List<String> cartridges, String gearProfile) throws OpenShiftException {
+	public IApplication getOrCreateApp(String appName, String domainName, List<String> cartridges, String gearProfile, Map<String, String> environmentVariables, Boolean autoScale) throws OpenShiftException {
 		IUser user = conn.getUser();
 		IDomain domain = user.getDomain(domainName);
 		
@@ -73,16 +74,20 @@ public class OpenShiftV2Client {
 		
 		// create app if doesn't exist
 		if (app == null) {
+			ApplicationScale appScale = autoScale.booleanValue() ? ApplicationScale.SCALE : ApplicationScale.NO_SCALE;
 			if (isEmpty(gearProfile)) {
-				app = domain.createApplication(appName, getStandaloneCartridge(cartridges));
+				app = domain.createApplication(appName, getStandaloneCartridge(cartridges), appScale);
 			} else {
-				app = domain.createApplication(appName, getStandaloneCartridge(cartridges), getGearProfile(gearProfile, domainName));
-			}
-			
-			
+				app = domain.createApplication(appName, getStandaloneCartridge(cartridges), appScale, getGearProfile(gearProfile, domainName));
+			}			
 			
 			app.addEmbeddableCartridges(getEmbeddedCartridge(cartridges));
+			
 			app.waitForAccessible(5*60*1000); // 5 min
+		}
+		
+		if (environmentVariables != null) {
+			app.addEnvironmentVariables(environmentVariables);
 		}
 		
 		return app;
@@ -97,7 +102,9 @@ public class OpenShiftV2Client {
 		}
 		
 		IApplication app = domain.getApplicationByName(appName);
-		app.destroy();
+		if (app != null) {
+			app.destroy();
+		}
 		
 		return app;
 	}

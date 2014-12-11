@@ -29,7 +29,9 @@ import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.SSLSession;
 
@@ -67,16 +69,21 @@ public class DeployApplication extends Builder implements BuildStep {
     private String gearProfile;
     private String appName;
     private String deploymentPath;
+    private String environmentVariables;
+    private Boolean autoScale;
 
 	@DataBoundConstructor
     public DeployApplication(String serverName, String appName, String cartridges,
-			String domain, String gearProfile, String deploymentPath) {
+			String domain, String gearProfile, String deploymentPath, String environmentVariables,
+			Boolean autoScale) {
 		this.serverName = serverName;
 		this.appName = appName;
 		this.cartridges = cartridges;
 		this.domain = domain;
 		this.gearProfile = gearProfile;
 		this.deploymentPath = deploymentPath;
+		this.environmentVariables = environmentVariables;
+		this.autoScale = autoScale;
 	}
 
 
@@ -122,7 +129,7 @@ public class DeployApplication extends Builder implements BuildStep {
         		List<String> domains = client.getDomains();
         		
         		if (domains.size() > 1) {
-        			abort(listener, "Specify the user doamin. " + domains.size() + " domains found on the account.");
+        			abort(listener, "Specify the user domain. " + domains.size() + " domains found on the account.");
         		} else if (domains.isEmpty()) {
         			abort(listener, "No domains exist. Create a domain first.");
         		}
@@ -130,7 +137,21 @@ public class DeployApplication extends Builder implements BuildStep {
         		targetDomain = domains.get(0);
         	}
         	
-        	IApplication app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile);
+        	IApplication app;
+        	if (isEmpty(environmentVariables)) {
+        		app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, null, autoScale);
+        	} else {
+        		Map<String, String> mapOfEnvironmentVariables = new HashMap<String,String>();
+        		for (String environmentVariable : Arrays.asList(environmentVariables.split(" "))) {
+        			if (environmentVariable.contains("=")) {
+        				String[] parts = environmentVariable.split("=");
+            			mapOfEnvironmentVariables.put(parts[0], parts[1]);	
+        			} else {
+                		abort(listener, "Invalid environment variable: " + environmentVariable);        				
+        			}
+        		}
+        		app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, mapOfEnvironmentVariables, autoScale);;
+        	}
         	deployToApp(deployments, app, build, listener);
     		
         } catch(AbortException e) {
@@ -291,6 +312,14 @@ public class DeployApplication extends Builder implements BuildStep {
 	
 	public String getDeploymentPath() {
 		return deploymentPath;
+	}
+	
+	public String getEnvironmentVariables() {
+		return environmentVariables;
+	}
+	
+	public Boolean autoScale() {
+		return autoScale;
 	}
 
 	public static class TrustingISSLCertificateCallback implements ISSLCertificateCallback {

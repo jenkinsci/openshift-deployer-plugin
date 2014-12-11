@@ -61,7 +61,7 @@ public class DeleteApplication extends Builder implements BuildStep {
         		List<String> domains = client.getDomains();
         		
         		if (domains.size() > 1) {
-        			abort(listener, "Specify the user doamin. " + domains.size() + " domains found on the account.");
+        			abort(listener, "Specify the user domain. " + domains.size() + " domains found on the account.");
         		} else if (domains.isEmpty()) {
         			abort(listener, "No domains exist. Cannot delete the gear.");
         		}
@@ -70,7 +70,12 @@ public class DeleteApplication extends Builder implements BuildStep {
         	}
         	
         	IApplication deletedApp = client.deleteApp(appName, targetDomain);
-        	log(listener, "Application '" + appName + "' [" + deletedApp.getApplicationUrl() + "] is deleted.");
+        	if (deletedApp != null) {
+			log(listener, "Application '" + appName + "' [" + deletedApp.getApplicationUrl() + "] is deleted.");
+		}
+		else {
+			log(listener, "Application '" + appName + "' is not found.");
+		}
         	
         } catch(AbortException e) {
         	throw e;

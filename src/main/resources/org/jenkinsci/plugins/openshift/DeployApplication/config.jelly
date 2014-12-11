@@ -5,7 +5,7 @@
 		<f:select />
     </f:entry>
     
-	<f:entry title="Applicaiton Name" field="appName"> 
+	<f:entry title="Application Name" field="appName"> 
 		<f:textbox />
     </f:entry>
 
@@ -20,6 +20,14 @@
 	<f:advanced>
 		<f:entry title="Gear Profile" field="gearProfile"> 
 			<f:select />
+	    </f:entry>
+	    
+		<f:entry title="Auto-Scale" field="autoScale"> 
+			<f:checkbox />
+	    </f:entry>
+    
+		<f:entry title="Environment Variables" field="environmentVariables"> 
+			<f:textbox />
 	    </f:entry>
 	    
 		<f:entry title="Deployment Packages(s)" field="deploymentPath" description="Directory or URL of the deployment packages (WAR or EAR)"> 
