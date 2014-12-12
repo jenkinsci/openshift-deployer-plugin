@@ -30,7 +30,11 @@
 			<f:textbox />
 	    </f:entry>
 	    
-		<f:entry title="Deployment Packages(s)" field="deploymentPath" description="Directory or URL of the deployment packages (WAR or EAR)"> 
+		<f:entry title="Deployment Type" field="deploymentType"> 
+			<f:select />
+	    </f:entry>
+	    
+		<f:entry title="Deployment Package" field="deploymentPackage" description="The path or URL to artifacts (war, ear or binary tar) to be deployed to the application."> 
 			<f:textbox default="target/" />
 	    </f:entry>
     </f:advanced>

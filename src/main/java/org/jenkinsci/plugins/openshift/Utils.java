@@ -103,7 +103,7 @@ public final class Utils {
 	}
 	
 	public static void abort(BuildListener listener, String msg) throws AbortException {
-    	listener.getLogger().println("[OPENSHIFT] ERROR: " + msg);
+    	listener.error("[OPENSHIFT] " + msg);
     	throw new AbortException();
 	}
 	
@@ -115,10 +115,30 @@ public final class Utils {
 		return "OpenShift: " + name;
 	}
 	
+	
+	private static DeployApplication.DeployApplicationDescriptor getDeployApplicationDescriptor() {
+		return (DeployApplication.DeployApplicationDescriptor)Hudson.getInstance().getDescriptor(DeployApplication.class);
+	}
+	
 	@SuppressWarnings("unchecked")
 	public static List<Server> getServers() {
-		DeployApplication.DeployApplicationDescriptor descriptor = (DeployApplication.DeployApplicationDescriptor)Hudson.getInstance().getDescriptor(DeployApplication.class);
+		DeployApplication.DeployApplicationDescriptor descriptor = getDeployApplicationDescriptor();
 		List<Server> servers = descriptor.getServers();
 		return servers == null ? (List<Server>) EMPTY_LIST : servers;
+	}
+	
+	public static String getSSHPrivateKey() {
+		DeployApplication.DeployApplicationDescriptor descriptor = getDeployApplicationDescriptor();
+		return descriptor.getPublicKeyPath() == null ? null : descriptor.getPublicKeyPath().replaceAll("^(.*)\\.pub$", "$1");
+	}
+	
+	public static File createDir(String path) {
+		File dir = new File(path);
+		
+		if (!dir.exists()) {
+			dir.mkdirs();
+		}
+		
+		return dir;
 	}
 }

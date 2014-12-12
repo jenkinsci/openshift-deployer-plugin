@@ -31,6 +31,8 @@ import com.openshift.client.cartridge.IStandaloneCartridge;
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
  */
 public class OpenShiftV2Client {
+	public static enum DeploymentType {GIT, BINARY}
+	
 	private String broker;
 	private String username;
 	private String password;
@@ -62,10 +64,12 @@ public class OpenShiftV2Client {
 		return new ValidationResult(true, "ok");
 	}
 	
-	public IApplication getOrCreateApp(String appName, String domainName, List<String> cartridges, String gearProfile, Map<String, String> environmentVariables, Boolean autoScale) throws OpenShiftException {
+	public IApplication getOrCreateApp(String appName, String domainName,
+			List<String> cartridges, String gearProfile,
+			Map<String, String> environmentVariables, Boolean autoScale) throws OpenShiftException {
 		IUser user = conn.getUser();
 		IDomain domain = user.getDomain(domainName);
-		
+
 		if (domain == null) { // check if domain exists
 			throw new OpenShiftException("Domain '" + domainName + "' doesn't exist.");
 		}
@@ -75,6 +79,7 @@ public class OpenShiftV2Client {
 		// create app if doesn't exist
 		if (app == null) {
 			ApplicationScale appScale = autoScale.booleanValue() ? ApplicationScale.SCALE : ApplicationScale.NO_SCALE;
+			
 			if (isEmpty(gearProfile)) {
 				app = domain.createApplication(appName, getStandaloneCartridge(cartridges), appScale);
 			} else {
