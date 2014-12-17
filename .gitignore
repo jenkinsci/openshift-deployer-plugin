@@ -1,7 +1,4 @@
 *.class
-*.jar
-*.war
-*.ear
 *.hpi
 *.tmp
 *.log
