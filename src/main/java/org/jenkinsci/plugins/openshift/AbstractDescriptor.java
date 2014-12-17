@@ -1,7 +1,8 @@
 package org.jenkinsci.plugins.openshift;
 
-import static org.jenkinsci.plugins.openshift.Utils.findServer;
+import static org.jenkinsci.plugins.openshift.util.Utils.findServer;
 
+import org.jenkinsci.plugins.openshift.util.Utils;
 import org.kohsuke.stapler.QueryParameter;
 
 import hudson.model.AbstractProject;
@@ -9,6 +10,9 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ListBoxModel;
 
+/**
+ * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
+ */
 public abstract class AbstractDescriptor extends BuildStepDescriptor<Builder> {
 	public AbstractDescriptor() {
 		super();

@@ -1,9 +1,9 @@
 package org.jenkinsci.plugins.openshift;
 
-import static org.jenkinsci.plugins.openshift.Utils.abort;
-import static org.jenkinsci.plugins.openshift.Utils.findServer;
-import static org.jenkinsci.plugins.openshift.Utils.isEmpty;
-import static org.jenkinsci.plugins.openshift.Utils.log;
+import static org.jenkinsci.plugins.openshift.util.Utils.abort;
+import static org.jenkinsci.plugins.openshift.util.Utils.findServer;
+import static org.jenkinsci.plugins.openshift.util.Utils.isEmpty;
+import static org.jenkinsci.plugins.openshift.util.Utils.log;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.Launcher;
@@ -18,6 +18,7 @@ import hudson.tasks.Builder;
 import java.io.IOException;
 import java.util.List;
 
+import org.jenkinsci.plugins.openshift.util.Utils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.openshift.client.IApplication;

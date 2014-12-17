@@ -1,15 +1,11 @@
 package org.jenkinsci.plugins.openshift;
 
-import static org.apache.commons.io.FileUtils.copyFile;
-import static org.apache.commons.io.FileUtils.copyFileToDirectory;
-import static org.apache.commons.io.FileUtils.forceDelete;
-import static org.jenkinsci.plugins.openshift.Utils.abort;
-import static org.jenkinsci.plugins.openshift.Utils.copyURLToFile;
-import static org.jenkinsci.plugins.openshift.Utils.findServer;
-import static org.jenkinsci.plugins.openshift.Utils.getRootDeploymentFile;
-import static org.jenkinsci.plugins.openshift.Utils.isEmpty;
-import static org.jenkinsci.plugins.openshift.Utils.isURL;
-import static org.jenkinsci.plugins.openshift.Utils.log;
+import static org.jenkinsci.plugins.openshift.util.Utils.abort;
+import static org.jenkinsci.plugins.openshift.util.Utils.copyURLToFile;
+import static org.jenkinsci.plugins.openshift.util.Utils.findServer;
+import static org.jenkinsci.plugins.openshift.util.Utils.isEmpty;
+import static org.jenkinsci.plugins.openshift.util.Utils.isURL;
+import static org.jenkinsci.plugins.openshift.util.Utils.log;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.Launcher;
@@ -23,20 +19,14 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.net.ssl.SSLSession;
@@ -45,26 +35,15 @@ import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.lib.TextProgressMonitor;
-import org.eclipse.jgit.transport.JschConfigSessionFactory;
-import org.eclipse.jgit.transport.OpenSshConfig.Host;
-import org.eclipse.jgit.transport.SshSessionFactory;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
+import org.jenkinsci.plugins.openshift.util.Utils;
 import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import com.jcraft.jsch.Channel;
-import com.jcraft.jsch.ChannelExec;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
 import com.openshift.client.IApplication;
 import com.openshift.client.IHttpClient.ISSLCertificateCallback;
 
@@ -75,9 +54,7 @@ public class DeployApplication extends Builder implements BuildStep {
 	private static final String WORK_DIR = "/openshift";
 
 	private static final String BINARY_TAR_NAME = "app.tar.gz";
-
-	private static final String BINARY_DEPLOY_CMD = "oo-binary-deploy";
-
+	
 	private static final Logger LOG = Logger.getLogger(DeployApplication.class.getName());
 
 	private String serverName;
@@ -170,7 +147,7 @@ public class DeployApplication extends Builder implements BuildStep {
 				app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, mapOfEnvironmentVariables, autoScale);
 			}
 
-			deployToApp(deployments, app, build, listener);
+			deploy(deployments, app, build, listener);
 
 		} catch (AbortException e) {
 			throw e;
@@ -182,7 +159,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		return true;
 	}
 
-	private void deployToApp(List<String> deployments, IApplication app, AbstractBuild<?, ?> build, BuildListener listener) throws AbortException,
+	private void deploy(List<String> deployments, IApplication app, AbstractBuild<?, ?> build, BuildListener listener) throws AbortException,
 			GitAPIException, IOException {
 		if (deployments == null || deployments.isEmpty()) {
 			abort(listener, "Deployment package list is empty.");
@@ -197,68 +174,22 @@ public class DeployApplication extends Builder implements BuildStep {
 		log(listener, "Application deployed to " + app.getApplicationUrl());
 	}
 
-	private void doBinaryDeploy(String deployment, IApplication app, AbstractBuild<?, ?> build, final BuildListener listener) throws IOException,
-			AbortException {
+	private void doBinaryDeploy(String deployment, IApplication app, AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
+		// reconfigure app for binary deploy
 		if (!app.getDeploymentType().equalsIgnoreCase(DeploymentType.BINARY.name())) {
 			app.setDeploymentType(DeploymentType.BINARY.toString().toLowerCase());
 		}
 
 		try {
-			log(listener, "Deployging " + deployment);
-			log(listener, "Starting SSH connection to " + app.getSshUrl());
-			URI uri = new URI(app.getSshUrl());
-
-			JSch jsch = new JSch();
-
-			// confgure logger
-			JSch.setLogger(new com.jcraft.jsch.Logger() {
-				public void log(int level, String message) {
-					try {
-						if (isEnabled(level)) {
-							Utils.log(listener, "SSH: " + message);
-						}
-					} catch (AbortException e) {
-					}
-				}
-
-				public boolean isEnabled(int level) {
-					return level >= INFO;
-				}
-			});
-
-			// add ssh keys
-			String sshPrivateKey = Utils.getSSHPrivateKey();
-			jsch.addIdentity(sshPrivateKey);
-			LOG.log(Level.FINE, "Using private SSH keys " + sshPrivateKey);
-
-			Session session = jsch.getSession(uri.getUserInfo(), uri.getHost());
-			session.setConfig("StrictHostKeyChecking", "no");
-			session.connect(10000);
-
-			Channel channel = session.openChannel("exec");
-			((ChannelExec) channel).setErrStream(listener.getLogger());
-			((ChannelExec) channel).setOutputStream(listener.getLogger());
-			((ChannelExec) channel).setInputStream(new FileInputStream(getDeploymentFile(build, deployment)));
-			((ChannelExec) channel).setCommand(BINARY_DEPLOY_CMD);
-
-			channel.connect();
-
-			while (!channel.isEOF()) {
-			}
-
-			channel.disconnect();
-			session.disconnect();
-			
-			log(listener, "Application deployed to " + app.getApplicationUrl());
-
-		} catch (JSchException e) {
-			throw new AbortException("Failed to deploy the binary. " + e.getMessage());
-		} catch (URISyntaxException e) {
+			// deploy
+			SSHClient sshClient = new SSHClient(app);
+			sshClient.deploy(getBinaryDeploymentFile(build, deployment));
+		} catch (IOException e) {
 			throw new AbortException(e.getMessage());
 		}
 	}
 
-	private File getDeploymentFile(AbstractBuild<?, ?> build, String deployment) throws IOException {
+	private File getBinaryDeploymentFile(AbstractBuild<?, ?> build, String deployment) throws IOException {
 		if (isURL(deployment)) {
 			File baseDir = createBaseDir(build);
 			File dest = new File(baseDir.getAbsolutePath() + "/" + BINARY_TAR_NAME);
@@ -274,42 +205,17 @@ public class DeployApplication extends Builder implements BuildStep {
 	private void doGitDeploy(List<String> deployments, IApplication app, AbstractBuild<?, ?> build, BuildListener listener)
 			throws AbortException, GitAPIException, IOException {
 		File baseDir = createBaseDir(build);
-
-		// clone repo
-		log(listener, "Cloning '" + app.getName() + "' [" + app.getGitUrl() + "] to " + baseDir.getAbsolutePath());
-		SshSessionFactory.setInstance(new JschConfigSessionFactory() {
-			@Override
-			protected void configure(Host hc, Session session) {
-				session.setConfig("StrictHostKeyChecking", "no");
-			}
-		});
-		Git git = Git.cloneRepository().setURI(app.getGitUrl()).setDirectory(baseDir).call();
-
-		// clean git repo
-		File[] removeList = baseDir.listFiles();
-		for (File fileToRemove : removeList) {
-			if (!fileToRemove.getName().equals(".git") && !fileToRemove.getName().equals(".openshift")) {
-				log(listener, "Deleting '" + fileToRemove.getName() + "'");
-				forceDelete(fileToRemove);
-			}
+		String commitMsg = "deployment added for Jenkins build " + build.getDisplayName() + "#" + build.getNumber();
+		
+		String relativeDeployPath;
+		if (cartridges.contains("jbossews")) {
+			relativeDeployPath = "/webapps"; // tomcat
+		} else {
+			relativeDeployPath = "/deployments"; // jboss/wildfly
 		}
-
-		// copy deployment
-		copyDeploymentPackages(listener, baseDir, deployments);
-
-		// add directories
-		git.add().addFilepattern("webapps").call();
-
-		git.add().addFilepattern("deployments").call();
-
-		// commit changes
-		log(listener, "Commiting repo");
-		git.commit().setAll(true).setMessage("deployment added for Jenkins build #" + build.getNumber()).call();
-
-		log(listener, "Pushing to upstream");
-		PushCommand pushCommand = git.push();
-		pushCommand.setProgressMonitor(new TextProgressMonitor(new OutputStreamWriter(System.out)));
-		pushCommand.call();
+		
+		GitClient gitClient = new GitClient(app);
+		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg);
 	}
 
 	private File createBaseDir(AbstractBuild<?, ?> build) throws IOException {
@@ -320,32 +226,6 @@ public class DeployApplication extends Builder implements BuildStep {
 		
 		baseDir.mkdirs();
 		return baseDir;
-	}
-
-	private void copyDeploymentPackages(BuildListener listener, File baseDir, List<String> deployments) throws AbortException, IOException {
-		File dest = null;
-		if (cartridges.contains("jbossews")) {
-			dest = new File(baseDir.getAbsoluteFile() + "/webapps"); // tomcat
-		} else {
-			dest = new File(baseDir.getAbsoluteFile() + "/deployments"); // jboss/wildfly
-		}
-
-		if (deployments.size() == 1) {
-			File destFile = getRootDeploymentFile(dest, deployments.get(0));
-
-			if (isURL(deployments.get(0))) {
-				log(listener, "Downloading the deployment package to '" + destFile.getName() + "'");
-				copyURLToFile(new URL(deployments.get(0)), destFile, 10000, 10000);
-			} else {
-				log(listener, "Copying the deployment package '" + FilenameUtils.getName(deployments.get(0)) + "' to '" + destFile.getName() + "'");
-				copyFile(new File(deployments.get(0)), destFile);
-			}
-		} else {
-			for (String deployment : deployments) {
-				log(listener, "Copying '" + FilenameUtils.getName(deployment) + "' to '" + dest.getName() + "'");
-				copyFileToDirectory(new File(deployment), dest);
-			}
-		}
 	}
 
 	private List<String> findDeployments(AbstractBuild<?, ?> build, BuildListener listener) throws AbortException {
