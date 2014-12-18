@@ -8,9 +8,15 @@ import hudson.model.BuildListener;
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
  */
 public class JenkinsLogger implements Logger {
+	private static final String DEFAULT_PREFIX = "OPENSHIFT";
+
 	private BuildListener listener;
 	
 	private String prefix;
+
+	public JenkinsLogger(BuildListener listener) {
+		this(listener, DEFAULT_PREFIX);
+	}
 	
 	public JenkinsLogger(BuildListener listener, String prefix) {
 		super();

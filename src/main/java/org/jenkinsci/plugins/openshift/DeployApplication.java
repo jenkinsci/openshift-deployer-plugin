@@ -38,6 +38,7 @@ import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
+import org.jenkinsci.plugins.openshift.util.JenkinsLogger;
 import org.jenkinsci.plugins.openshift.util.Utils;
 import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -183,6 +184,8 @@ public class DeployApplication extends Builder implements BuildStep {
 		try {
 			// deploy
 			SSHClient sshClient = new SSHClient(app);
+			sshClient.setLogger(new JenkinsLogger(listener));
+			sshClient.setSSHPrivateKey(Utils.getSSHPrivateKey());
 			sshClient.deploy(getBinaryDeploymentFile(build, deployment));
 		} catch (IOException e) {
 			throw new AbortException(e.getMessage());
@@ -215,6 +218,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		}
 		
 		GitClient gitClient = new GitClient(app);
+		gitClient.setLogger(new JenkinsLogger(listener));
 		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg);
 	}
 
@@ -347,7 +351,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		public List<Server> getServers() {
 			return servers;
 		}
-
+		
 		public String getPublicKeyPath() {
 			return isEmpty(publicKeyPath) ? DEFAULT_PUBLICKEY_PATH : publicKeyPath;
 		}
@@ -366,6 +370,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		public FormValidation doUploadSSHKeys(@QueryParameter("brokerAddress") final String brokerAddress, @QueryParameter("username") final String username,
 				@QueryParameter("password") final String password, @QueryParameter("publicKeyPath") final String publicKeyPath) {
 			OpenShiftV2Client client = new OpenShiftV2Client(brokerAddress, username, password);
+			
 			try {
 				if (publicKeyPath == null) {
 					return FormValidation.error("Specify the path to SSH public key.");

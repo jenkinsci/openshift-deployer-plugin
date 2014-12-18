@@ -8,7 +8,6 @@ import java.net.URISyntaxException;
 
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.jenkinsci.plugins.openshift.util.Logger;
-import org.jenkinsci.plugins.openshift.util.Utils;
 
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelExec;
@@ -27,6 +26,8 @@ public class SSHClient {
 	
 	private IApplication app;
 	
+	private String sshPrivateKey;
+	
 	public SSHClient(IApplication app) {
 		super();
 		this.app = app;
@@ -34,6 +35,10 @@ public class SSHClient {
 	
 	public void setLogger(Logger log) {
 		this.log = log;
+	}
+	
+	public void setSSHPrivateKey(String sshPrivateKey) {
+		this.sshPrivateKey = sshPrivateKey;
 	}
 
 	public void deploy(File deployment) throws IOException {
@@ -64,9 +69,8 @@ public class SSHClient {
 			});
 
 			// add ssh keys
-			String sshPrivateKey = Utils.getSSHPrivateKey();
 			jsch.addIdentity(sshPrivateKey);
-			log.info("Using private SSH keys " + sshPrivateKey);
+			log.info("Using SSH private key " + sshPrivateKey);
 
 			Session session = jsch.getSession(uri.getUserInfo(), uri.getHost());
 			session.setConfig("StrictHostKeyChecking", "no");
