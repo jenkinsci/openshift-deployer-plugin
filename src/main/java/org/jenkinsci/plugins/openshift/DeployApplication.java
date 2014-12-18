@@ -302,7 +302,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		return autoScale;
 	}
 
-	public DeploymentType getDeployType() {
+	public DeploymentType getDeploymentType() {
 		return deploymentType;
 	}
 
