@@ -3,6 +3,7 @@
 *.tmp
 *.log
 *.bak
+*.iml
 
 target
 work
