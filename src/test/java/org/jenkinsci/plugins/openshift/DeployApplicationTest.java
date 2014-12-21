@@ -2,7 +2,6 @@ package org.jenkinsci.plugins.openshift;
 
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
-
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.junit.Ignore;
 import org.junit.Test;

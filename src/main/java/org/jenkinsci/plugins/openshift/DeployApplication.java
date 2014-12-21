@@ -1,39 +1,20 @@
 package org.jenkinsci.plugins.openshift;
 
-import static org.jenkinsci.plugins.openshift.util.Utils.abort;
-import static org.jenkinsci.plugins.openshift.util.Utils.copyURLToFile;
-import static org.jenkinsci.plugins.openshift.util.Utils.findServer;
-import static org.jenkinsci.plugins.openshift.util.Utils.isEmpty;
-import static org.jenkinsci.plugins.openshift.util.Utils.isURL;
-import static org.jenkinsci.plugins.openshift.util.Utils.log;
+import com.openshift.client.IApplication;
+import com.openshift.client.IHttpClient.ISSLCertificateCallback;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.Launcher;
+import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.Result;
-import hudson.model.AbstractBuild;
 import hudson.tasks.BuildStep;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-
-import java.io.File;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Logger;
-
-import javax.net.ssl.SSLSession;
-
 import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
-
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
@@ -45,8 +26,15 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import com.openshift.client.IApplication;
-import com.openshift.client.IHttpClient.ISSLCertificateCallback;
+import javax.net.ssl.SSLSession;
+import java.io.File;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.net.URL;
+import java.util.*;
+import java.util.logging.Logger;
+
+import static org.jenkinsci.plugins.openshift.util.Utils.*;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
@@ -248,19 +236,35 @@ public class DeployApplication extends Builder implements BuildStep {
 				abort(listener, "Directory '" + dir.getAbsolutePath() + "' doesn't exist. No deployments found!");
 			}
 
-			File[] deploymentFiles = dir.listFiles(new FilenameFilter() {
-				public boolean accept(File dir, String name) {
-					if (deploymentType == DeploymentType.BINARY) {
-						return name.toLowerCase().endsWith(".tar.gz");
-					} else {
-						return name.toLowerCase().endsWith(".ear") || name.toLowerCase().endsWith(".war");
+			// Let us handle directories
+			if(dir.isDirectory()) {
+				File[] deploymentFiles = dir.listFiles(new FilenameFilter() {
+					public boolean accept(File dir, String name) {
+						if (deploymentType == DeploymentType.BINARY) {
+							return name.toLowerCase().endsWith(".tar.gz");
+						} else {
+							return name.toLowerCase().endsWith(".ear") || name.toLowerCase().endsWith(".war");
+						}
 					}
+				});
+				for (File file : deploymentFiles) {
+					deployments.add(file.getAbsolutePath());
+					log(listener, "Adding " + file.getAbsolutePath() + " to Deployment List");
 				}
-			});
-
-			for (File file : deploymentFiles) {
-				deployments.add(file.getAbsolutePath());
 			}
+			// Handle single Files
+			else if (dir.isFile() &&
+					(dir.getAbsolutePath().toLowerCase().endsWith(".ear")
+							|| dir.getAbsolutePath().toLowerCase().endsWith(".war"))) {
+				deployments.add(dir.getAbsolutePath());
+				log(listener, "Adding " + dir.getAbsolutePath() + " to Deployment List");
+			}
+		}
+
+		// If we cannot find any deployments we should abort to avoid NullPointers
+		if(deployments.isEmpty())
+		{
+			abort(listener, "No Deployments found! (configuredValue: " + deploymentPackage + ")");
 		}
 
 		return deployments;
@@ -322,7 +326,7 @@ public class DeployApplication extends Builder implements BuildStep {
 
 		private List<Server> servers = new ArrayList<Server>();
 
-		private String publicKeyPath;
+		public String publicKeyPath;
 
 		public DeployApplicationDescriptor() {
 			super(DeployApplication.class);
