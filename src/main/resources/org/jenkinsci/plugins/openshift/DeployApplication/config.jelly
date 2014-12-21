@@ -34,7 +34,7 @@
 			<f:select />
 	    </f:entry>
 	    
-		<f:entry title="Deployment Package" field="deploymentPackage" description="The path or URL to artifacts (war, ear or tar) to be deployed to the cotnainer."> 
+		<f:entry title="Deployment Package" field="deploymentPackage" description="The path or URL to the artifacts (war, ear or tar) to be deployed to the container.">
 			<f:textbox default="target/" />
 	    </f:entry>
     </f:advanced>
