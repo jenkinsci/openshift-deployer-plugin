@@ -22,8 +22,8 @@
 				        <f:password name="password" value="${server.password}"/>
 				    </f:entry>
 				    <f:entry>
-				    	<f:validateButton title="Check Login" progress="Loggin in..." method="checkLogin" with="brokerAddress,username,password" />
-				    	<f:validateButton title="Upload SSH Keys" progress="Uploading..." method="uploadSSHKeys" with="publicKeyPath,brokerAddress,username,password, " />
+				    	<f:validateButton title="Check Login" progress="Logging in ..." method="checkLogin" with="brokerAddress,username,password" />
+				    	<f:validateButton title="Upload SSH Keys" progress="Uploading ..." method="uploadSSHKeys" with="publicKeyPath,brokerAddress,username,password, " />
 				    </f:entry>
 				    <f:entry>
 				    	<div align="right">
