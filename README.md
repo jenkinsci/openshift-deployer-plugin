@@ -65,4 +65,3 @@ Building & Installing from Source
 TODO
 -------------
 * Add support for markers, action hooks and other configs located in .openshift directory for WAR/EAR deployment
-* Encrypt OpenShift password in Jenkins config
