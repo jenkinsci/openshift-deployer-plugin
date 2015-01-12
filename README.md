@@ -64,4 +64,4 @@ Building & Installing from Source
 
 TODO
 -------------
-* Add support for markers, action hooks and other configs located in .openshift directory for WAR/EAR deployment
+Moved to [JIRA](https://issues.jenkins-ci.org/secure/IssueNavigator.jspa?mode=hide&reset=true&jqlQuery=project+%3D+JENKINS+AND+status+in+%28Open%2C+%22In+Progress%22%2C+Reopened%29+AND+component+%3D+%27openshift-deployer-plugin%27)
