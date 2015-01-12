@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.openshift;
 
+import hudson.util.Secret;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
@@ -10,6 +11,7 @@ public class Server {
 	private String brokerAddress;
 	private String username;
 	private String password;
+	private Secret secret;
 
 	
 	@DataBoundConstructor
@@ -18,7 +20,8 @@ public class Server {
 		this.name = name;
 		this.brokerAddress = brokerAddress;
 		this.username = username;
-		this.password = password;
+		if (secret == null) secret = Secret.fromString(password);
+		this.password = secret.getEncryptedValue();
 	}
 
 	public String getName() {
@@ -34,6 +37,6 @@ public class Server {
 	}
 
 	public String getPassword() {
-		return password;
+		return Secret.toString(secret);
 	}
 }
