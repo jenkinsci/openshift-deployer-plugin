@@ -19,6 +19,6 @@ public class DeployApplicationTest extends BaseJenkinsTest {
 
 	private DeployApplication createDeployAppBuildStep() {
 		String deployment = ClassLoader.getSystemResource(BINARY_DEPLOYMENT).getFile();
-		return new DeployApplication(SERVER_NAME, APP_NAME, EAP_CARTRIDGE, deployment, SMALL_GEAR, "", null, false, DeploymentType.BINARY);
+		return new DeployApplication(SERVER_NAME, APP_NAME, EAP_CARTRIDGE, deployment, SMALL_GEAR, "", null, false, DeploymentType.BINARY, false);
 	}
 }
