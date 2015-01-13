@@ -46,28 +46,9 @@ public class GitClient {
 	
 	public void deploy(List<String> deployments, File workingCopyDir, String relativeDeployDir) 
 			throws IOException, GitAPIException {
-		deploy(deployments, workingCopyDir, relativeDeployDir, "");
+		deploy(deployments, workingCopyDir, relativeDeployDir, "", false, false);
 	}
 
-	
-	/**
-	 * Deploy the deployment units through Git. This Method assumes sets enableJava7 to false
-	 * 
-	 * @param deployments list of packages to be deployed
-	 * @param workingCopyDir where git repo will be cloned 
-	 * @param relativeDeployDir the relative path in the working copy where the deployment packages should be copied
-	 * @param commitMsg git commit message
-	 * 
-	 * @throws IOException
-	 * @throws GitAPIException 
-	 * @throws TransportException 
-	 * @throws InvalidRemoteException 
-	 */
-	public void deploy(List<String> deployments, File workingCopyDir, String relativeDeployDir, String commitMsg) 
-			throws IOException, GitAPIException {
-		deploy(deployments, workingCopyDir, relativeDeployDir, commitMsg, false);
-	}
-	
 	/**
 	 * Deploy the deployment units through Git.
 	 *
@@ -76,13 +57,14 @@ public class GitClient {
 	 * @param relativeDeployDir the relative path in the working copy where the deployment packages should be copied
 	 * @param commitMsg git commit message
 	 * @param enableJava7 Enable Java7 support
+	 * @param enableJpda Enable JPDA support
 	 *
 	 * @throws IOException
 	 * @throws GitAPIException
 	 * @throws TransportException
 	 * @throws InvalidRemoteException
 	 */
-	public void deploy(List<String> deployments, File workingCopyDir, String relativeDeployDir, String commitMsg, Boolean enableJava7) throws IOException, GitAPIException {
+	public void deploy(List<String> deployments, File workingCopyDir, String relativeDeployDir, String commitMsg, Boolean enableJava7, Boolean enableJpda) throws IOException, GitAPIException {
 		// clone repo
 		log.info("Cloning '" + app.getName() + "' [" + app.getGitUrl() + "] to " + workingCopyDir);
 		SshSessionFactory.setInstance(new JschConfigSessionFactory() {
@@ -109,10 +91,13 @@ public class GitClient {
 		// Create the Java 7 Marker if it is requested
 		if(enableJava7)
 		{
-			log.info("java7 marker file requested ... creating it");
-			File java7marker = new File(workingCopyDir.getAbsolutePath() + "/.openshift/markers/java7");
-			java7marker.getParentFile().mkdirs();
-			java7marker.createNewFile();
+			createOpenShiftMarkerFile(workingCopyDir, "java7");
+		}
+
+		// Create the Java 7 Marker if it is requested
+		if(enableJpda)
+		{
+			createOpenShiftMarkerFile(workingCopyDir, "enable_jpda");
 		}
 
 		// add directories
@@ -128,6 +113,13 @@ public class GitClient {
 		Iterable<PushResult> pushResults = pushCommand.call();
 		for(PushResult result : pushResults)
 			System.out.println(result.toString());
+	}
+
+	private void createOpenShiftMarkerFile(File workingCopyDir, String filename) throws IOException {
+		log.info(filename + " marker file requested ... creating it");
+		File java7marker = new File(workingCopyDir.getAbsolutePath() + "/.openshift/markers/" + filename);
+		java7marker.getParentFile().mkdirs();
+		java7marker.createNewFile();
 	}
 
 	private void copyDeploymentPackages(List<String> deployments, File dest) throws AbortException, IOException {

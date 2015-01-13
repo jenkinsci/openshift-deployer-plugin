@@ -56,6 +56,7 @@ public class DeploymentPackageTest {
     private String environmentVariables = "";
     private Boolean autoScale = false;
     private Boolean enableJava7 = false;
+    private Boolean enableJpda = false;
 
     @Before
     public void setup() throws IOException {
@@ -83,7 +84,7 @@ public class DeploymentPackageTest {
         deploymentPackage = "non-existing-directory/deployment.war";
 
         OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.GIT;
-        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, enableJava7);
+        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, enableJava7, enableJpda);
 
         List<String> deployments = null;
         try {
@@ -100,7 +101,7 @@ public class DeploymentPackageTest {
         deploymentPackage = "deployment";
 
         OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.GIT;
-        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, enableJava7);
+        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, enableJava7, enableJpda);
 
         List<String> deployments = null;
         try {
@@ -120,7 +121,7 @@ public class DeploymentPackageTest {
         deploymentPackage = "deployment/app.war";
 
         OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.GIT;
-        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, enableJava7);
+        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, enableJava7, enableJpda);
 
         List<String> deployments = null;
         try {
@@ -140,7 +141,7 @@ public class DeploymentPackageTest {
         enableJava7 = true;
 
         OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.GIT;
-        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, enableJava7);
+        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, enableJava7, enableJpda);
 
         List<String> deployments = null;
         try {
@@ -151,6 +152,65 @@ public class DeploymentPackageTest {
         Whitebox.invokeMethod(deployer, "doGitDeploy", deployments, app, build, listener);
 
         //verify
+        assertTrue(
+                "Repository must contain the java7 marker file .openshift/markers/java7",
+                TestUtils.gitRepoContainsFile(repository, ".openshift/markers/java7")
+        );
+        assertFalse(
+                "Repository must not contain the JPDA marker file .openshift/markers/enable_jpda",
+                TestUtils.gitRepoContainsFile(repository, ".openshift/markers/enable_jpda")
+        );
+    }
+
+    @Test
+    public void testJpdaMarkerFile() throws Exception {
+        deploymentPackage = "deployment/app.war";
+        enableJpda = true;
+
+        OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.GIT;
+        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, enableJava7, enableJpda);
+
+        List<String> deployments = null;
+        try {
+            deployments = Whitebox.invokeMethod(deployer, "findDeployments", build, listener);
+        } catch (AbortException e) {
+            // expected
+        }
+        Whitebox.invokeMethod(deployer, "doGitDeploy", deployments, app, build, listener);
+
+        //verify
+        assertTrue(
+                "Repository must contain the JPDA marker file .openshift/markers/enable_jpda",
+                TestUtils.gitRepoContainsFile(repository, ".openshift/markers/enable_jpda")
+        );
+        assertFalse(
+                "Repository must not contain the java7 marker file .openshift/markers/java7",
+                TestUtils.gitRepoContainsFile(repository, ".openshift/markers/java7")
+        );
+    }
+
+    @Test
+    public void testJava7AndJpdaMarkerFile() throws Exception {
+        deploymentPackage = "deployment/app.war";
+        enableJpda = true;
+        enableJava7 = true;
+
+        OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.GIT;
+        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, enableJava7, enableJpda);
+
+        List<String> deployments = null;
+        try {
+            deployments = Whitebox.invokeMethod(deployer, "findDeployments", build, listener);
+        } catch (AbortException e) {
+            // expected
+        }
+        Whitebox.invokeMethod(deployer, "doGitDeploy", deployments, app, build, listener);
+
+        //verify
+        assertTrue(
+                "Repository must contain the JPDA marker file .openshift/markers/enable_jpda",
+                TestUtils.gitRepoContainsFile(repository, ".openshift/markers/enable_jpda")
+        );
         assertTrue(
                 "Repository must contain the java7 marker file .openshift/markers/java7",
                 TestUtils.gitRepoContainsFile(repository, ".openshift/markers/java7")

@@ -56,10 +56,11 @@ public class DeployApplication extends Builder implements BuildStep {
 	private Boolean autoScale;
 	private DeploymentType deploymentType = DeploymentType.GIT;
 	private Boolean enableJava7;
+	private Boolean enableJpda;
 
 	@DataBoundConstructor
 	public DeployApplication(String serverName, String appName, String cartridges, String domain, String gearProfile, String deploymentPackage,
-			String environmentVariables, Boolean autoScale, DeploymentType deploymentType, Boolean enableJava7) {
+			String environmentVariables, Boolean autoScale, DeploymentType deploymentType, Boolean enableJava7, Boolean enableJpda) {
 		this.serverName = serverName;
 		this.appName = appName;
 		this.cartridges = cartridges;
@@ -70,6 +71,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		this.autoScale = autoScale;
 		this.deploymentType = deploymentType;
 		this.enableJava7 = enableJava7;
+		this.enableJpda = enableJpda;
 	}
 
 	@Override
@@ -209,7 +211,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		
 		GitClient gitClient = new GitClient(app);
 		gitClient.setLogger(new JenkinsLogger(listener));
-		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg, enableJava7);
+		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg, enableJava7, enableJpda);
 	}
 
 	private File createBaseDir(AbstractBuild<?, ?> build) throws IOException {
