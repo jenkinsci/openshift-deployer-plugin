@@ -4,6 +4,7 @@ import com.jcraft.jsch.Session;
 import com.openshift.client.IApplication;
 import hudson.AbortException;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -15,8 +16,10 @@ import org.eclipse.jgit.transport.OpenSshConfig.Host;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.SshSessionFactory;
 import org.jenkinsci.plugins.openshift.util.Logger;
+import org.jenkinsci.plugins.openshift.util.Utils;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.URL;
@@ -46,7 +49,7 @@ public class GitClient {
 	
 	public void deploy(List<String> deployments, File workingCopyDir, String relativeDeployDir) 
 			throws IOException, GitAPIException {
-		deploy(deployments, workingCopyDir, relativeDeployDir, "", false, false);
+		deploy(deployments, workingCopyDir, relativeDeployDir, "", "");
 	}
 
 	/**
@@ -56,15 +59,14 @@ public class GitClient {
 	 * @param workingCopyDir where git repo will be cloned
 	 * @param relativeDeployDir the relative path in the working copy where the deployment packages should be copied
 	 * @param commitMsg git commit message
-	 * @param enableJava7 Enable Java7 support
-	 * @param enableJpda Enable JPDA support
+	 * @param openshiftDirectory The configured value that contains an openshift directory structure
 	 *
 	 * @throws IOException
 	 * @throws GitAPIException
 	 * @throws TransportException
 	 * @throws InvalidRemoteException
 	 */
-	public void deploy(List<String> deployments, File workingCopyDir, String relativeDeployDir, String commitMsg, Boolean enableJava7, Boolean enableJpda) throws IOException, GitAPIException {
+	public void deploy(List<String> deployments, File workingCopyDir, String relativeDeployDir, String commitMsg, String openshiftDirectory) throws IOException, GitAPIException {
 		// clone repo
 		log.info("Cloning '" + app.getName() + "' [" + app.getGitUrl() + "] to " + workingCopyDir);
 		SshSessionFactory.setInstance(new JschConfigSessionFactory() {
@@ -88,16 +90,56 @@ public class GitClient {
 		File dest = new File(workingCopyDir.getAbsoluteFile() + relativeDeployDir);
 		copyDeploymentPackages(deployments, dest);
 
-		// Create the Java 7 Marker if it is requested
-		if(enableJava7)
-		{
-			createOpenShiftMarkerFile(workingCopyDir, "java7");
-		}
+		// Handle OpenShift Directory
+		File dotOpenshiftSource = null;
 
-		// Create the Java 7 Marker if it is requested
-		if(enableJpda)
+		if(!StringUtils.isEmpty(openshiftDirectory))
 		{
-			createOpenShiftMarkerFile(workingCopyDir, "enable_jpda");
+			Boolean correctLayout = Utils.validateOpenshiftDirectory(openshiftDirectory);
+			if(correctLayout) {
+				if (!openshiftDirectory.endsWith("openshift")) {
+					// Examine the current directory if it contains an openshift or .openshift directory
+					File directory = null;
+					if (openshiftDirectory.startsWith(File.separator))
+						directory = new File(openshiftDirectory); // Absolute Path
+					else
+						directory = new File(getClass().getResource("/").getPath() + File.separator + openshiftDirectory); // Relative Path
+
+					File[] dirContents = directory.listFiles(new FilenameFilter() {
+						public boolean accept(File dir, String name) {
+							if (name.equals(".") || name.equals(".."))
+								return false;
+							else
+								return true;
+						}
+					});
+
+					for (File file : dirContents)
+					{
+						if(file.getName().endsWith("openshift")) {
+							dotOpenshiftSource = file;
+							break;
+						}
+
+					}
+
+				}
+				else
+				{
+					if (openshiftDirectory.startsWith(File.separator))
+						dotOpenshiftSource = new File(openshiftDirectory); // Absolute Path
+					else
+						dotOpenshiftSource = new File(getClass().getResource("/").getPath() + File.separator + openshiftDirectory); // Relative Path
+				}
+
+				for (File source : dotOpenshiftSource.listFiles())
+					copyDirectoryToDirectory(source, new File(workingCopyDir + File.separator + ".openshift"));
+			}
+			else
+			{
+				log.info("The provided .openshift directory " + openshiftDirectory + " does not seem to be valid. Please ensure that it contains any of (openshift, .openshift, config, action_hooks or markers");
+				log.info("Not putting anything from the directory " + openshiftDirectory + " into the repository.");
+			}
 		}
 
 		// add directories
@@ -113,13 +155,6 @@ public class GitClient {
 		Iterable<PushResult> pushResults = pushCommand.call();
 		for(PushResult result : pushResults)
 			System.out.println(result.toString());
-	}
-
-	private void createOpenShiftMarkerFile(File workingCopyDir, String filename) throws IOException {
-		log.info(filename + " marker file requested ... creating it");
-		File java7marker = new File(workingCopyDir.getAbsolutePath() + "/.openshift/markers/" + filename);
-		java7marker.getParentFile().mkdirs();
-		java7marker.createNewFile();
 	}
 
 	private void copyDeploymentPackages(List<String> deployments, File dest) throws AbortException, IOException {

@@ -1,23 +1,22 @@
 package org.jenkinsci.plugins.openshift.util;
 
-import static java.util.Collections.EMPTY_LIST;
-import static org.apache.commons.io.FilenameUtils.getExtension;
 import hudson.AbortException;
 import hudson.model.BuildListener;
 import hudson.model.Hudson;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.List;
-
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.IOUtils;
 import org.jenkinsci.plugins.openshift.DeployApplication;
 import org.jenkinsci.plugins.openshift.Server;
-import org.jenkinsci.plugins.openshift.DeployApplication.DeployApplicationDescriptor;
+
+import java.io.*;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static java.util.Collections.EMPTY_LIST;
+import static org.apache.commons.io.FilenameUtils.getExtension;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
@@ -143,5 +142,47 @@ public final class Utils {
 		}
 		
 		return dir;
+	}
+
+	public static Boolean validateOpenshiftDirectory(String openshiftDirectory) {
+
+		List<String> validNames = new ArrayList<String>() {{
+			add("openshift");
+			add(".openshift");
+			add("config");
+			add("action_hooks");
+			add("markers");
+		}};
+
+		File directory = null;
+		if (openshiftDirectory.startsWith(File.separator))
+			directory = new File(openshiftDirectory); // Absolute Path
+		else
+			directory = new File(Utils.class.getResource("/").getPath() + File.separator + openshiftDirectory); // Relative Path
+
+		// Make sure the path exists and is a directory
+		if(!directory.exists()) return false;
+		if(!directory.isDirectory()) return false;
+
+		/* Try to determine whether the user has configured a directory containing
+		   a .openshift directory, or the .openshift directory itself  */
+		String[] filesArray = directory.list(new FilenameFilter() {
+			public boolean accept(File dir, String name) {
+				if (name.equals(".") || name.equals("..")) return false;
+				return true;
+			}
+		});
+		if(filesArray == null) return false;
+		List<String> files = Arrays.asList(filesArray);
+
+		// Check whether there are valid entries in the files list
+		if(CollectionUtils.containsAny(files,validNames))
+		{
+			// Looks like a valid directory
+			return true;
+		}
+
+		// We did not find anything, meaning the directory is not valid
+		return false;
 	}
 }

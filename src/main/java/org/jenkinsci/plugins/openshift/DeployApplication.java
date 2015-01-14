@@ -40,7 +40,7 @@ import static org.jenkinsci.plugins.openshift.util.Utils.*;
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
  */
 public class DeployApplication extends Builder implements BuildStep {
-	private static final String WORK_DIR = "/openshift";
+	private static final String WORK_DIR = "/openshift-deployer-workdir";
 
 	private static final String BINARY_TAR_NAME = "app.tar.gz";
 	
@@ -55,12 +55,11 @@ public class DeployApplication extends Builder implements BuildStep {
 	private String environmentVariables;
 	private Boolean autoScale;
 	private DeploymentType deploymentType = DeploymentType.GIT;
-	private Boolean enableJava7;
-	private Boolean enableJpda;
+	private String openshiftDirectory;
 
 	@DataBoundConstructor
 	public DeployApplication(String serverName, String appName, String cartridges, String domain, String gearProfile, String deploymentPackage,
-			String environmentVariables, Boolean autoScale, DeploymentType deploymentType, Boolean enableJava7, Boolean enableJpda) {
+			String environmentVariables, Boolean autoScale, DeploymentType deploymentType, String openshiftDirectory) {
 		this.serverName = serverName;
 		this.appName = appName;
 		this.cartridges = cartridges;
@@ -70,8 +69,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		this.environmentVariables = environmentVariables;
 		this.autoScale = autoScale;
 		this.deploymentType = deploymentType;
-		this.enableJava7 = enableJava7;
-		this.enableJpda = enableJpda;
+		this.openshiftDirectory = openshiftDirectory;
 	}
 
 	@Override
@@ -211,7 +209,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		
 		GitClient gitClient = new GitClient(app);
 		gitClient.setLogger(new JenkinsLogger(listener));
-		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg, enableJava7, enableJpda);
+		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg, openshiftDirectory);
 	}
 
 	private File createBaseDir(AbstractBuild<?, ?> build) throws IOException {
@@ -235,7 +233,7 @@ public class DeployApplication extends Builder implements BuildStep {
 			}
 
 		} else {
-			File dir = new File(build.getWorkspace() + "/" + deploymentPackage);
+			File dir = new File(build.getWorkspace() + File.separator + deploymentPackage);
 			if (!dir.exists()) {
 				abort(listener, "Directory '" + dir.getAbsolutePath() + "' doesn't exist. No deployments found!");
 			}
