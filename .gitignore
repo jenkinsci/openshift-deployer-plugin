@@ -4,6 +4,8 @@
 *.log
 *.bak
 *.iml
+*.ipr
+*.iws
 
 target
 work

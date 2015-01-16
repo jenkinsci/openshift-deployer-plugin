@@ -2,7 +2,6 @@ package org.jenkinsci.plugins.openshift;
 
 import com.jcraft.jsch.Session;
 import com.openshift.client.IApplication;
-import hudson.AbortException;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.Git;
@@ -154,7 +153,7 @@ public class GitClient {
 			System.out.println(result.toString());
 	}
 
-	private void copyDeploymentPackages(List<String> deployments, File dest) throws AbortException, IOException {
+	private void copyDeploymentPackages(List<String> deployments, File dest) throws IOException {
 		if (deployments.size() == 1) {
 			File destFile = createRootDeploymentFile(dest, deployments.get(0));
 

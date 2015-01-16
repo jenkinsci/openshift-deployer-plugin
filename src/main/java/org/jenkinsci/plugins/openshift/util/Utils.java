@@ -5,6 +5,7 @@ import hudson.model.BuildListener;
 import hudson.model.Hudson;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jenkinsci.plugins.openshift.DeployApplication;
 import org.jenkinsci.plugins.openshift.Server;
 
@@ -107,6 +108,10 @@ public final class Utils {
 	public static void abort(BuildListener listener, String msg) throws AbortException {
     	listener.error("[OPENSHIFT] " + msg);
     	throw new AbortException();
+	}
+
+	public static void abort(BuildListener listener, Exception e) throws AbortException {
+		abort(listener, ExceptionUtils.getStackTrace(e));
 	}
 	
 	public static void log(BuildListener listener, String msg) throws AbortException {

@@ -1,27 +1,22 @@
 package org.jenkinsci.plugins.openshift;
 
-import static org.jenkinsci.plugins.openshift.util.Utils.abort;
-import static org.jenkinsci.plugins.openshift.util.Utils.findServer;
-import static org.jenkinsci.plugins.openshift.util.Utils.isEmpty;
-import static org.jenkinsci.plugins.openshift.util.Utils.log;
-import hudson.AbortException;
+import com.openshift.client.IApplication;
 import hudson.Extension;
 import hudson.Launcher;
-import hudson.model.BuildListener;
-import hudson.model.Result;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.model.BuildListener;
+import hudson.model.Result;
 import hudson.tasks.BuildStep;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
+import org.jenkinsci.plugins.openshift.util.Utils;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
 import java.util.List;
 
-import org.jenkinsci.plugins.openshift.util.Utils;
-import org.kohsuke.stapler.DataBoundConstructor;
-
-import com.openshift.client.IApplication;
+import static org.jenkinsci.plugins.openshift.util.Utils.*;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
@@ -77,9 +72,6 @@ public class DeleteApplication extends Builder implements BuildStep {
 		else {
 			log(listener, "Application '" + appName + "' is not found.");
 		}
-        	
-        } catch(AbortException e) {
-        	throw e;
         	
         } catch(Exception e) {
         	abort(listener, e.getMessage());

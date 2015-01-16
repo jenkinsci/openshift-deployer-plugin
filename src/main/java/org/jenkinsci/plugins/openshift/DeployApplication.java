@@ -141,18 +141,15 @@ public class DeployApplication extends Builder implements BuildStep {
 
 			deploy(deployments, app, build, listener);
 
-		} catch (AbortException e) {
-			throw e;
-
 		} catch (Exception e) {
-			abort(listener, e.getMessage());
+			abort(listener, e);
 		}
 
 		return true;
 	}
 
-	private void deploy(List<String> deployments, IApplication app, AbstractBuild<?, ?> build, BuildListener listener) throws AbortException,
-			GitAPIException, IOException {
+	private void deploy(List<String> deployments, IApplication app, AbstractBuild<?, ?> build, BuildListener listener)
+			throws GitAPIException, IOException {
 		if (deployments == null || deployments.isEmpty()) {
 			abort(listener, "Deployment package list is empty.");
 		}
@@ -166,21 +163,17 @@ public class DeployApplication extends Builder implements BuildStep {
 		log(listener, "Application deployed to " + app.getApplicationUrl());
 	}
 
-	private void doBinaryDeploy(String deployment, IApplication app, AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
+	private void doBinaryDeploy(String deployment, IApplication app, AbstractBuild<?, ?> build, final BuildListener listener) throws IOException {
 		// reconfigure app for binary deploy
 		if (!app.getDeploymentType().equalsIgnoreCase(DeploymentType.BINARY.name())) {
 			app.setDeploymentType(DeploymentType.BINARY.toString().toLowerCase());
 		}
 
-		try {
-			// deploy
-			SSHClient sshClient = new SSHClient(app);
-			sshClient.setLogger(new JenkinsLogger(listener));
-			sshClient.setSSHPrivateKey(Utils.getSSHPrivateKey());
-			sshClient.deploy(getBinaryDeploymentFile(build, deployment));
-		} catch (IOException e) {
-			throw new AbortException(e.getMessage());
-		}
+		// deploy
+		SSHClient sshClient = new SSHClient(app);
+		sshClient.setLogger(new JenkinsLogger(listener));
+		sshClient.setSSHPrivateKey(Utils.getSSHPrivateKey());
+		sshClient.deploy(getBinaryDeploymentFile(build, deployment));
 	}
 
 	private File getBinaryDeploymentFile(AbstractBuild<?, ?> build, String deployment) throws IOException {
@@ -197,7 +190,7 @@ public class DeployApplication extends Builder implements BuildStep {
 	}
 
 	private void doGitDeploy(List<String> deployments, IApplication app, AbstractBuild<?, ?> build, BuildListener listener)
-			throws AbortException, GitAPIException, IOException {
+			throws GitAPIException, IOException {
 		File baseDir = createBaseDir(build);
 		String commitMsg = "deployment added for Jenkins build " + build.getDisplayName() + "#" + build.getNumber();
 		
