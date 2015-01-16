@@ -206,10 +206,16 @@ public class DeployApplication extends Builder implements BuildStep {
 		} else {
 			relativeDeployPath = "/deployments"; // jboss/wildfly
 		}
+
+		String dotOpenshiftDirectory = null;
+		if(new File(openshiftDirectory).isAbsolute())
+			dotOpenshiftDirectory = openshiftDirectory;
+		else
+			dotOpenshiftDirectory = build.getWorkspace() + File.separator + openshiftDirectory;
 		
 		GitClient gitClient = new GitClient(app);
 		gitClient.setLogger(new JenkinsLogger(listener));
-		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg, openshiftDirectory);
+		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg, dotOpenshiftDirectory);
 	}
 
 	private File createBaseDir(AbstractBuild<?, ?> build) throws IOException {

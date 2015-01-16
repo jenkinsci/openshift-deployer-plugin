@@ -137,7 +137,7 @@ public class DeploymentPackageTest {
     @Test
     public void testOpenshiftDirectory() throws Exception {
         deploymentPackage = "deployment/app.war";
-        dotOpenshiftDirectory = "openshift";
+        dotOpenshiftDirectory = this.getClass().getResource("/").getPath() + File.separator + "openshift";
 
         OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.GIT;
         DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, dotOpenshiftDirectory);
@@ -186,5 +186,50 @@ public class DeploymentPackageTest {
                 "Repository must not contain the java7 marker file .openshift/markers/java7",
                 TestUtils.gitRepoContainsFile(repository, ".openshift/markers/java7")
         );
+    }
+
+    @Test
+    public void testNullOpenshiftDirectory() throws Exception {
+        deploymentPackage = "deployment/app.war";
+        dotOpenshiftDirectory = "";
+
+        OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.GIT;
+        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, dotOpenshiftDirectory);
+
+        List<String> deployments = null;
+        try {
+            deployments = Whitebox.invokeMethod(deployer, "findDeployments", build, listener);
+        } catch (AbortException e) {
+            // expected
+        }
+        Whitebox.invokeMethod(deployer, "doGitDeploy", deployments, app, build, listener);
+
+        //verify
+        assertFalse(
+                "Repository must not contain the JPDA marker file .openshift/markers/enable_jpda",
+                TestUtils.gitRepoContainsFile(repository, ".openshift/markers/enable_jpda")
+        );
+        assertFalse(
+                "Repository must not contain the java7 marker file .openshift/markers/java7",
+                TestUtils.gitRepoContainsFile(repository, ".openshift/markers/java7")
+        );
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testIllegalArgumentException() throws Exception {
+        deploymentPackage = "deployment/app.war";
+        dotOpenshiftDirectory = "openshift";
+
+        OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.GIT;
+        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, dotOpenshiftDirectory);
+
+        List<String> deployments = null;
+        try {
+            deployments = Whitebox.invokeMethod(deployer, "findDeployments", build, listener);
+        } catch (AbortException e) {
+            // expected
+        }
+        Whitebox.invokeMethod(deployer, "doGitDeploy", deployments, app, build, listener);
+
     }
 }

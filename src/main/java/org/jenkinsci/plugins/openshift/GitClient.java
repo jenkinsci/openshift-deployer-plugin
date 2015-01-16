@@ -59,7 +59,9 @@ public class GitClient {
 	 * @param workingCopyDir where git repo will be cloned
 	 * @param relativeDeployDir the relative path in the working copy where the deployment packages should be copied
 	 * @param commitMsg git commit message
-	 * @param openshiftDirectory The configured value that contains an openshift directory structure
+	 * @param openshiftDirectory The configured value that contains an openshift directory structure.
+	 *                           This value should be the Absolute Path to the directory. The Parameter can
+	 *                           also be null or empty
 	 *
 	 * @throws IOException
 	 * @throws GitAPIException
@@ -67,6 +69,15 @@ public class GitClient {
 	 * @throws InvalidRemoteException
 	 */
 	public void deploy(List<String> deployments, File workingCopyDir, String relativeDeployDir, String commitMsg, String openshiftDirectory) throws IOException, GitAPIException {
+
+		// Sanity Check
+		if(openshiftDirectory != null && !StringUtils.isEmpty(openshiftDirectory))
+		{
+			if(!openshiftDirectory.startsWith(File.separator))
+				throw new IllegalArgumentException("openshiftDirectory is not null or empty and is not an absolute path.");
+		}
+
+
 		// clone repo
 		log.info("Cloning '" + app.getName() + "' [" + app.getGitUrl() + "] to " + workingCopyDir);
 		SshSessionFactory.setInstance(new JschConfigSessionFactory() {
@@ -96,50 +107,36 @@ public class GitClient {
 		if(!StringUtils.isEmpty(openshiftDirectory))
 		{
 			Boolean correctLayout = Utils.validateOpenshiftDirectory(openshiftDirectory);
-			if(correctLayout) {
-				if (!openshiftDirectory.endsWith("openshift")) {
-					// Examine the current directory if it contains an openshift or .openshift directory
-					File directory = null;
-					if (openshiftDirectory.startsWith(File.separator))
-						directory = new File(openshiftDirectory); // Absolute Path
-					else
-						directory = new File(getClass().getResource("/").getPath() + File.separator + openshiftDirectory); // Relative Path
+			if (!openshiftDirectory.endsWith("openshift")) {
+                // Examine the current directory if it contains an openshift or .openshift directory
+                File directory = new File(openshiftDirectory);
 
-					File[] dirContents = directory.listFiles(new FilenameFilter() {
-						public boolean accept(File dir, String name) {
-							if (name.equals(".") || name.equals(".."))
-								return false;
-							else
-								return true;
-						}
-					});
+                File[] dirContents = directory.listFiles(new FilenameFilter() {
+                    public boolean accept(File dir, String name) {
+                        if (name.equals(".") || name.equals(".."))
+                            return false;
+                        else
+                            return true;
+                    }
+                });
 
-					for (File file : dirContents)
-					{
-						if(file.getName().endsWith("openshift")) {
-							dotOpenshiftSource = file;
-							break;
-						}
+                for (File file : dirContents)
+                {
+                    if(file.getName().endsWith("openshift")) {
+                        dotOpenshiftSource = file;
+                        break;
+                    }
 
-					}
+                }
 
-				}
-				else
-				{
-					if (openshiftDirectory.startsWith(File.separator))
-						dotOpenshiftSource = new File(openshiftDirectory); // Absolute Path
-					else
-						dotOpenshiftSource = new File(getClass().getResource("/").getPath() + File.separator + openshiftDirectory); // Relative Path
-				}
-
-				for (File source : dotOpenshiftSource.listFiles())
-					copyDirectoryToDirectory(source, new File(workingCopyDir + File.separator + ".openshift"));
+            }
+            else
+            {
+				dotOpenshiftSource = new File(openshiftDirectory); // Absolute Path
 			}
-			else
-			{
-				log.info("The provided .openshift directory " + openshiftDirectory + " does not seem to be valid. Please ensure that it contains any of (openshift, .openshift, config, action_hooks or markers");
-				log.info("Not putting anything from the directory " + openshiftDirectory + " into the repository.");
-			}
+
+			for (File source : dotOpenshiftSource.listFiles())
+                copyDirectoryToDirectory(source, new File(workingCopyDir + File.separator + ".openshift"));
 		}
 
 		// add directories
