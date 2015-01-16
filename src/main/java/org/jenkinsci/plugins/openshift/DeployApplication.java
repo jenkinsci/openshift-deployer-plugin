@@ -273,6 +273,10 @@ public class DeployApplication extends Builder implements BuildStep {
 		return deployments;
 	}
 
+	public boolean isBinaryDeploy() {
+		return deploymentType ==  DeploymentType.BINARY;
+	}
+
 	public BuildStepMonitor getRequiredMonitorService() {
 		return BuildStepMonitor.BUILD;
 	}
@@ -413,14 +417,6 @@ public class DeployApplication extends Builder implements BuildStep {
 			for (String gearProfile : client.getGearProfiles()) {
 				items.add(gearProfile, gearProfile);
 			}
-
-			return items;
-		}
-		
-		public ListBoxModel doFillDeploymentTypeItems() {
-			ListBoxModel items = new ListBoxModel();
-			items.add(DeploymentType.GIT.name(), DeploymentType.GIT.name());
-			items.add(DeploymentType.BINARY.name(), DeploymentType.BINARY.name());
 
 			return items;
 		}

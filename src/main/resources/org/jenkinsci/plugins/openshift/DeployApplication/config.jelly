@@ -29,17 +29,20 @@
 		<f:entry title="Environment Variables" field="environmentVariables"> 
 			<f:textbox />
 	    </f:entry>
-	    
-		<f:entry title="Deployment Type" field="deploymentType"> 
-			<f:select />
-	    </f:entry>
-	    
+
 		<f:entry title="Deployment Package" field="deploymentPackage" description="The path or URL to the artifacts (war, ear or tar) to be deployed to the container.">
 			<f:textbox default="target/" />
 	    </f:entry>
 
-		<f:entry title=".openshift Directory" field="openshiftDirectory" description="The path to a .openshift directory which will be put into the git repository along with the deployment unit">
-			<f:textbox default="src/main/resources/openshift" />
-		</f:entry>
+		<f:radioBlock name="deploymentType" inline="true" value="BINARY" title="Binary Deploy" checked="${instance.isBinaryDeploy()}" />
+		<f:radioBlock name="deploymentType" inline="true" value="GIT" title="Git Deploy" checked="${!instance.isBinaryDeploy()}">
+		<f:block>
+			<div style="margin-top:10px">
+				<f:entry title=".openshift Directory" field="openshiftDirectory" description="The path to a .openshift directory which will be put into the git repository along with the deployment unit">
+					<f:textbox default="src/main/resources/openshift" />
+				</f:entry>
+			</div>
+			</f:block>
+		</f:radioBlock>
     </f:advanced>
 </j:jelly>
