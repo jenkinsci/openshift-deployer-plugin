@@ -16,6 +16,7 @@ import hudson.util.ListBoxModel;
 import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
@@ -40,7 +41,7 @@ import static org.jenkinsci.plugins.openshift.util.Utils.*;
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
  */
 public class DeployApplication extends Builder implements BuildStep {
-	private static final String WORK_DIR = "/openshift";
+	private static final String WORK_DIR = "/openshift-deployer-workdir";
 
 	private static final String BINARY_TAR_NAME = "app.tar.gz";
 	
@@ -55,10 +56,11 @@ public class DeployApplication extends Builder implements BuildStep {
 	private String environmentVariables;
 	private Boolean autoScale;
 	private DeploymentType deploymentType = DeploymentType.GIT;
+	private String openshiftDirectory;
 
 	@DataBoundConstructor
 	public DeployApplication(String serverName, String appName, String cartridges, String domain, String gearProfile, String deploymentPackage,
-			String environmentVariables, Boolean autoScale, DeploymentType deploymentType) {
+			String environmentVariables, Boolean autoScale, DeploymentType deploymentType, String openshiftDirectory) {
 		this.serverName = serverName;
 		this.appName = appName;
 		this.cartridges = cartridges;
@@ -68,6 +70,7 @@ public class DeployApplication extends Builder implements BuildStep {
 		this.environmentVariables = environmentVariables;
 		this.autoScale = autoScale;
 		this.deploymentType = deploymentType;
+		this.openshiftDirectory = openshiftDirectory;
 	}
 
 	@Override
@@ -204,10 +207,17 @@ public class DeployApplication extends Builder implements BuildStep {
 		} else {
 			relativeDeployPath = "/deployments"; // jboss/wildfly
 		}
-		
+
+		String dotOpenshiftDirectory = null;
+		if(!StringUtils.isEmpty(openshiftDirectory)) {
+			if (new File(openshiftDirectory).isAbsolute())
+				dotOpenshiftDirectory = openshiftDirectory;
+			else
+				dotOpenshiftDirectory = build.getWorkspace() + File.separator + openshiftDirectory;
+		}
 		GitClient gitClient = new GitClient(app);
 		gitClient.setLogger(new JenkinsLogger(listener));
-		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg);
+		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg, dotOpenshiftDirectory);
 	}
 
 	private File createBaseDir(AbstractBuild<?, ?> build) throws IOException {
@@ -231,7 +241,7 @@ public class DeployApplication extends Builder implements BuildStep {
 			}
 
 		} else {
-			File dir = new File(build.getWorkspace() + "/" + deploymentPackage);
+			File dir = new File(build.getWorkspace() + File.separator + deploymentPackage);
 			if (!dir.exists()) {
 				abort(listener, "Directory '" + dir.getAbsolutePath() + "' doesn't exist. No deployments found!");
 			}

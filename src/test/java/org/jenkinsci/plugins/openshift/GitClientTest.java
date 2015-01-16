@@ -1,53 +1,69 @@
 package org.jenkinsci.plugins.openshift;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-
+import com.openshift.client.IApplication;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
-import com.openshift.client.IApplication;
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
 
 @RunWith(MockitoJUnitRunner.class)
 public class GitClientTest {
 	@Mock
 	private IApplication app;
 
-	@Test
-	public void deploy() throws Exception {
+	private static Repository repository;
 
-		Repository repository = createNewRepository();
+
+	@BeforeClass
+	public static void globalTestSetup() throws IOException {
+		// prepare a new folder
+		File localPath = createPath("TestGitRepository");
+
+		// create the directory
+		repository = FileRepositoryBuilder.create(new File(localPath, ".git"));
+		repository.create();
+	}
+
+	@Before
+	public void generalMockSetup() throws Exception {
 		// mock
 		Mockito.when(app.getName()).thenReturn("testapp");
 		Mockito.when(app.getGitUrl()).thenReturn(repository.getDirectory().getAbsolutePath());
+	}
+
+	@Test
+	public void deploy() throws Exception {
+		// deploy
+		String deployment = ClassLoader.getSystemResource("deployment/app.war").getFile();
+		GitClient gitClient = new GitClient(app);
+		gitClient.deploy(Arrays.asList(deployment), createPath("TestWorkingCopy"), "/deployments");
+
+		// verify
+		TestUtils.gitRepoContainsFile(repository, "deployment/ROOT.war");
+	}
+
+	@Test
+	public void testJava7Marker() throws Exception {
 
 		// deploy
 		String deployment = ClassLoader.getSystemResource("deployment/app.war").getFile();
 		GitClient gitClient = new GitClient(app);
 		gitClient.deploy(Arrays.asList(deployment), createPath("TestWorkingCopy"), "/deployments");
-		
+
 		// verify
 		TestUtils.gitRepoContainsFile(repository, "deployment/ROOT.war");
 	}
 
-	private Repository createNewRepository() throws IOException {
-		// prepare a new folder
-		File localPath = createPath("TestGitRepository");
-
-		// create the directory
-		Repository repository = FileRepositoryBuilder.create(new File(localPath, ".git"));
-		repository.create();
-
-		return repository;
-	}
-
-	private File createPath(String path) throws IOException {
+	private static File createPath(String path) throws IOException {
 		File file = File.createTempFile(path, "");
 		file.delete();
 		return file;
