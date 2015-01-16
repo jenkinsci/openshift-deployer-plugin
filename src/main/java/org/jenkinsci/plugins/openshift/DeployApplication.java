@@ -16,6 +16,7 @@ import hudson.util.ListBoxModel;
 import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
@@ -208,11 +209,12 @@ public class DeployApplication extends Builder implements BuildStep {
 		}
 
 		String dotOpenshiftDirectory = null;
-		if(new File(openshiftDirectory).isAbsolute())
-			dotOpenshiftDirectory = openshiftDirectory;
-		else
-			dotOpenshiftDirectory = build.getWorkspace() + File.separator + openshiftDirectory;
-		
+		if(!StringUtils.isEmpty(openshiftDirectory)) {
+			if (new File(openshiftDirectory).isAbsolute())
+				dotOpenshiftDirectory = openshiftDirectory;
+			else
+				dotOpenshiftDirectory = build.getWorkspace() + File.separator + openshiftDirectory;
+		}
 		GitClient gitClient = new GitClient(app);
 		gitClient.setLogger(new JenkinsLogger(listener));
 		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg, dotOpenshiftDirectory);

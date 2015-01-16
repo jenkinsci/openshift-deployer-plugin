@@ -220,16 +220,7 @@ public class DeploymentPackageTest {
         deploymentPackage = "deployment/app.war";
         dotOpenshiftDirectory = "openshift";
 
-        OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.GIT;
-        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, dotOpenshiftDirectory);
-
-        List<String> deployments = null;
-        try {
-            deployments = Whitebox.invokeMethod(deployer, "findDeployments", build, listener);
-        } catch (AbortException e) {
-            // expected
-        }
-        Whitebox.invokeMethod(deployer, "doGitDeploy", deployments, app, build, listener);
-
+        GitClient client = new GitClient(app);
+        client.deploy(null, null, null, "", dotOpenshiftDirectory);
     }
 }
