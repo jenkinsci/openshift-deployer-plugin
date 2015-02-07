@@ -1,22 +1,27 @@
 package org.jenkinsci.plugins.openshift;
 
-import com.openshift.client.IApplication;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.jenkinsci.plugins.openshift.util.Utils.abort;
+import static org.jenkinsci.plugins.openshift.util.Utils.findServer;
+import static org.jenkinsci.plugins.openshift.util.Utils.log;
 import hudson.Extension;
 import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.model.Result;
+import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
 import hudson.tasks.BuildStep;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
-import org.jenkinsci.plugins.openshift.util.Utils;
-import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
 import java.util.List;
 
-import static org.jenkinsci.plugins.openshift.util.Utils.*;
+import org.apache.commons.lang3.StringUtils;
+import org.jenkinsci.plugins.openshift.util.Utils;
+import org.kohsuke.stapler.DataBoundConstructor;
+
+import com.openshift.client.IApplication;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
@@ -40,7 +45,7 @@ public class DeleteApplication extends Builder implements BuildStep {
         	abort(listener, "Build is not success.");
         }
 
-        if (Utils.isEmpty(appName)) {
+        if (isEmpty(appName)) {
         	abort(listener, "Application name is not specified.");
         }
 

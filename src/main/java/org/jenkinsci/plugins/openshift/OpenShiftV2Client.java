@@ -1,6 +1,6 @@
 package org.jenkinsci.plugins.openshift;
 
-import static org.jenkinsci.plugins.openshift.util.Utils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 import java.io.File;
 import java.io.IOException;

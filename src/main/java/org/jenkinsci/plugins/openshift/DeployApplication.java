@@ -1,22 +1,42 @@
 package org.jenkinsci.plugins.openshift;
 
-import com.openshift.client.IApplication;
-import com.openshift.client.IHttpClient.ISSLCertificateCallback;
+import static java.util.Collections.singletonList;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.jenkinsci.plugins.openshift.util.Utils.abort;
+import static org.jenkinsci.plugins.openshift.util.Utils.copyDeploymenstToMaster;
+import static org.jenkinsci.plugins.openshift.util.Utils.copyFileFromSlaveToMaster;
+import static org.jenkinsci.plugins.openshift.util.Utils.findServer;
+import static org.jenkinsci.plugins.openshift.util.Utils.isURL;
+import static org.jenkinsci.plugins.openshift.util.Utils.log;
 import hudson.AbortException;
 import hudson.Extension;
+import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.Result;
+import hudson.model.AbstractBuild;
+import hudson.remoting.VirtualChannel;
 import hudson.tasks.BuildStep;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
+
+import javax.net.ssl.SSLSession;
+
 import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
+
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
@@ -27,15 +47,8 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import javax.net.ssl.SSLSession;
-import java.io.File;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.net.URL;
-import java.util.*;
-import java.util.logging.Logger;
-
-import static org.jenkinsci.plugins.openshift.util.Utils.*;
+import com.openshift.client.IApplication;
+import com.openshift.client.IHttpClient.ISSLCertificateCallback;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
@@ -43,8 +56,6 @@ import static org.jenkinsci.plugins.openshift.util.Utils.*;
 public class DeployApplication extends Builder implements BuildStep {
 	private static final String WORK_DIR = "/openshift-deployer-workdir";
 
-	private static final String BINARY_TAR_NAME = "app.tar.gz";
-	
 	private static final Logger LOG = Logger.getLogger(DeployApplication.class.getName());
 
 	private String serverName;
@@ -168,32 +179,24 @@ public class DeployApplication extends Builder implements BuildStep {
 		if (!app.getDeploymentType().equalsIgnoreCase(DeploymentType.BINARY.name())) {
 			app.setDeploymentType(DeploymentType.BINARY.toString().toLowerCase());
 		}
+		
+		// copy deployments to master from the slave node or URLs
+		File baseDir = createBaseDirOnMaster(build);
+		List<String> localDeployments = Utils.copyDeploymenstToMaster(build, listener, singletonList(deployment), baseDir, deploymentType);
 
 		// deploy
 		SSHClient sshClient = new SSHClient(app);
 		sshClient.setLogger(new JenkinsLogger(listener));
 		sshClient.setSSHPrivateKey(Utils.getSSHPrivateKey());
-		sshClient.deploy(getBinaryDeploymentFile(build, deployment));
-	}
-
-	private File getBinaryDeploymentFile(AbstractBuild<?, ?> build, String deployment) throws IOException {
-		if (isURL(deployment)) {
-			File baseDir = createBaseDir(build);
-			File dest = new File(baseDir.getAbsolutePath() + "/" + BINARY_TAR_NAME);
-			LOG.fine("Downloading the deployment binary to '" +  dest.getAbsolutePath() + "'");
-			copyURLToFile(new URL(deployment), dest, 10000, 10000);
-			return dest;
-			
-		} else {
-			return new File(deployment);
-		}
+		sshClient.deploy(new File(localDeployments.get(0)));
 	}
 
 	private void doGitDeploy(List<String> deployments, IApplication app, AbstractBuild<?, ?> build, BuildListener listener)
 			throws GitAPIException, IOException {
-		File baseDir = createBaseDir(build);
+		File baseDir = createBaseDirOnMaster(build);
 		String commitMsg = "deployment added for Jenkins build " + build.getDisplayName() + "#" + build.getNumber();
 		
+		// set deployment dir based on cartridge type
 		String relativeDeployPath;
 		if (cartridges.contains("jbossews")) {
 			relativeDeployPath = "/webapps"; // tomcat
@@ -201,20 +204,37 @@ public class DeployApplication extends Builder implements BuildStep {
 			relativeDeployPath = "/deployments"; // jboss/wildfly
 		}
 
-		String dotOpenshiftDirectory = null;
-		if(!StringUtils.isEmpty(openshiftDirectory)) {
-			if (new File(openshiftDirectory).isAbsolute())
-				dotOpenshiftDirectory = openshiftDirectory;
-			else
-				dotOpenshiftDirectory = build.getWorkspace() + File.separator + openshiftDirectory;
+		// set .openshift dir
+		String dotOpenshiftDir = null;
+		if(!isEmpty(openshiftDirectory)) {
+			if (new File(openshiftDirectory).isAbsolute()) {
+				dotOpenshiftDir = openshiftDirectory;
+			} else {
+				dotOpenshiftDir = build.getWorkspace() + File.separator + openshiftDirectory;
+			}
+			
+			if (!Utils.runingOnMaster()) {
+				String localDotOpenShiftDir = baseDir + File.separator + ".openshift";
+				copyFileFromSlaveToMaster(build, dotOpenshiftDir, localDotOpenShiftDir);
+				dotOpenshiftDir = localDotOpenShiftDir;
+			}
 		}
+		
+		// copy deployments to master from the slave node or URL
+		List<String> localDeployments = copyDeploymenstToMaster(build, listener, deployments, baseDir, deploymentType);
+		
+		// set git base dir
+		File gitBaseDir = new File(baseDir, "git");
+		
+		// git deploy
 		GitClient gitClient = new GitClient(app);
 		gitClient.setLogger(new JenkinsLogger(listener));
-		gitClient.deploy(deployments, baseDir, relativeDeployPath, commitMsg, dotOpenshiftDirectory);
+		gitClient.deploy(localDeployments, gitBaseDir, relativeDeployPath, commitMsg, dotOpenshiftDir);
 	}
 
-	private File createBaseDir(AbstractBuild<?, ?> build) throws IOException {
-		File baseDir = new File(build.getWorkspace() + WORK_DIR);
+	private File createBaseDirOnMaster(AbstractBuild<?, ?> build) throws IOException {
+		String baseDirPath = Utils.getBuildWorkspaceOnMaster(build) + WORK_DIR;
+		File baseDir = new File(baseDirPath);
 		if (baseDir.exists()) {
 			FileUtils.deleteDirectory(baseDir);
 		}
@@ -234,33 +254,51 @@ public class DeployApplication extends Builder implements BuildStep {
 			}
 
 		} else {
-			File dir = new File(build.getWorkspace() + File.separator + deploymentPackage);
-			if (!dir.exists()) {
-				abort(listener, "Directory '" + dir.getAbsolutePath() + "' doesn't exist. No deployments found!");
+			VirtualChannel channel = build.getWorkspace().getChannel();
+			String filePath = null;
+			if (new File(deploymentPackage).isAbsolute()) {
+				filePath = deploymentPackage;
+			} else {
+				filePath = build.getWorkspace() + File.separator + deploymentPackage;
+			}
+			
+			FilePath dir = new FilePath(channel, filePath);
+
+			LOG.fine("Using hudson.FilePath for resolving content for deploy:\n    Channel: " + channel + " \n    FilePath: " + filePath);
+
+			try {
+				if (!dir.exists()) {
+					abort(listener, "Directory '" + dir + "' doesn't exist. No deployments found!");
+				}
+			} catch (Exception e) {
+				throw new AbortException(e.getMessage());
 			}
 
-			// Let us handle directories
-			if(dir.isDirectory()) {
-				File[] deploymentFiles = dir.listFiles(new FilenameFilter() {
-					public boolean accept(File dir, String name) {
-						if (deploymentType == DeploymentType.BINARY) {
-							return name.toLowerCase().endsWith(".tar.gz");
-						} else {
-							return name.toLowerCase().endsWith(".ear") || name.toLowerCase().endsWith(".war");
-						}
+			try {
+				if (dir.isDirectory()) {
+					String includes = null;
+					if (deploymentType == DeploymentType.BINARY) {
+						includes = "*.tar.gz";
+					} else {
+						includes = "*.ear,*.war";
 					}
-				});
-				for (File file : deploymentFiles) {
-					deployments.add(file.getAbsolutePath());
-					log(listener, "Adding " + file.getAbsolutePath() + " to Deployment List");
+
+					FilePath[] deploymentFiles = dir.list(includes);
+					for (FilePath file : deploymentFiles) {
+						deployments.add(file.getRemote());
+						
+						LOG.fine("Adding " + file.getRemote() + " to deployment list");
+					}
+				} else if (!dir.isDirectory() 
+						&& (dir.getRemote().toLowerCase().endsWith(".ear") 
+								|| dir.getRemote().toLowerCase().endsWith(".war"))) { // Handle single Files
+					deployments.add(dir.getRemote());
+					
+					LOG.fine("Adding " + dir.getRemote() + " to the deployment list");
 				}
-			}
-			// Handle single Files
-			else if (dir.isFile() &&
-					(dir.getAbsolutePath().toLowerCase().endsWith(".ear")
-							|| dir.getAbsolutePath().toLowerCase().endsWith(".war"))) {
-				deployments.add(dir.getAbsolutePath());
-				log(listener, "Adding " + dir.getAbsolutePath() + " to Deployment List");
+				
+			} catch (Exception e) {
+				throw new AbortException(e.getMessage());
 			}
 		}
 

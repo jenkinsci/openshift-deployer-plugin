@@ -1,58 +1,68 @@
 package org.jenkinsci.plugins.openshift.util;
 
+import static java.util.Collections.EMPTY_LIST;
+import static org.apache.commons.io.FilenameUtils.getName;
 import hudson.AbortException;
+import hudson.FilePath;
 import hudson.model.BuildListener;
+import hudson.model.AbstractBuild;
+import hudson.model.Computer;
 import hudson.model.Hudson;
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.jenkinsci.plugins.openshift.DeployApplication;
-import org.jenkinsci.plugins.openshift.Server;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
-import static java.util.Collections.EMPTY_LIST;
-import static org.apache.commons.io.FilenameUtils.getExtension;
+import jenkins.model.Jenkins.MasterComputer;
+
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.jenkinsci.plugins.openshift.DeployApplication;
+import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
+import org.jenkinsci.plugins.openshift.Server;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
  */
 public final class Utils {
+	private static final Logger LOG = Logger.getLogger(Utils.class.getName());
+	
 	private Utils() {
 	}
 	
-	public static boolean isEmpty(String str) {
-		return str == null || str.trim().length() == 0;
-	}
-	
-	public static File createRootDeploymentFile(File dest, String deployment) {
-		StringBuilder path = new StringBuilder();
-		path.append(dest.getAbsolutePath());
-		path.append("/ROOT.");
-		
-		String dep = deployment.toLowerCase();
-		if (isURL(dep)) {
-			if (dep.contains(".ear")) {
-				path.append("ear");
-			} else if (dep.contains(".war")) {
-				path.append("war");
-			} else if (dep.contains("ear")) { // TODO: fuzzy! might be just part of the url e.g. /bear
-				path.append("ear");
-			} else { 						  
-				path.append("war");
-			}
-		} else {
-			path.append(getExtension(dep));
-		}
-		
-		return new File(path.toString());
-	}
-	
+//	public static File createRootDeploymentFile(File dest, String deployment) {
+//		StringBuilder path = new StringBuilder();
+//		path.append(dest.getAbsolutePath());
+//		path.append("/ROOT.");
+//		
+//		String dep = deployment.toLowerCase();
+//		if (isURL(dep)) {
+//			if (dep.contains(".ear")) {
+//				path.append("ear");
+//			} else if (dep.contains(".war")) {
+//				path.append("war");
+//			} else if (dep.contains("ear")) { // TODO: fuzzy! might be just part of the url e.g. /bear
+//				path.append("ear");
+//			} else { 						  
+//				path.append("war");
+//			}
+//		} else {
+//			path.append(getExtension(dep));
+//		}
+//		
+//		return new File(path.toString());
+//	}
+//	
 	public static boolean isURL(String str) {
 		return str.startsWith("http://") || str.startsWith("https://");
 	}
@@ -96,9 +106,12 @@ public final class Utils {
 		} else {
 			final File parent = file.getParentFile();
 			if (parent != null) {
+				// TEMP
+				LOG.info("Parent exists: " + parent.exists());
+				
+				// TEMP
 				if (!parent.mkdirs() && !parent.isDirectory()) {
-					throw new IOException("Directory '" + parent
-							+ "' could not be created");
+					throw new IOException("Directory '" + parent + "' could not be created");
 				}
 			}
 		}
@@ -150,7 +163,6 @@ public final class Utils {
 	}
 
 	public static Boolean validateOpenshiftDirectory(String openshiftDirectory) {
-
 		List<String> validNames = new ArrayList<String>() {{
 			add("openshift");
 			add(".openshift");
@@ -169,8 +181,8 @@ public final class Utils {
 		if(!directory.exists()) return false;
 		if(!directory.isDirectory()) return false;
 
-		/* Try to determine whether the user has configured a directory containing
-		   a .openshift directory, or the .openshift directory itself  */
+		// Try to determine whether the user has configured a directory containing
+		//  a .openshift directory, or the .openshift directory itself  */
 		String[] filesArray = directory.list(new FilenameFilter() {
 			public boolean accept(File dir, String name) {
 				if (name.equals(".") || name.equals("..")) return false;
@@ -190,4 +202,108 @@ public final class Utils {
 		// We did not find anything, meaning the directory is not valid
 		return false;
 	}
+	
+    public static String getBuildWorkspaceOnMaster(AbstractBuild<?, ?> build) {
+    	if (runingOnMaster()) {
+    		return build.getWorkspace().getRemote();
+    	}
+    	
+    	// the current build dir on master + workspace:
+    	// jenkins/jobs/[jobname]/builds/[buildnumber]/workspace
+    	return build.getProject().getBuildDir() + File.separator + build.getNumber() + File.separator + "workspace";
+    }
+    
+    public static boolean runingOnMaster() {
+    	return Computer.currentComputer() instanceof MasterComputer;
+    }
+    
+	public static void copyFileFromSlaveToMaster(AbstractBuild<?,?> build, String slavePath, String masterPath) throws IOException {
+		FilePath slaveFile = new FilePath(build.getWorkspace().getChannel(), slavePath);
+		File masterFile = new File(masterPath);
+		
+		try {
+			if (!slaveFile.exists()) {
+				return;
+			}
+		} catch (InterruptedException e) {
+			throw new IOException(e);		
+		}
+		
+		try {
+			if (slaveFile.isDirectory()) {
+				// remove if dir exists on master
+				if (masterFile.exists()) {
+					FileUtils.deleteDirectory(masterFile);
+				}
+				
+				// create dir on master
+				if (!masterFile.mkdirs()) {
+					throw new IOException("Failed to create the directory on master node: " + masterPath);
+				}
+				
+				slaveFile.copyRecursiveTo(new FilePath(masterFile));
+
+				
+			} else {
+				slaveFile.copyTo(new FilePath(masterFile));
+			}
+		} catch (InterruptedException e) {
+			throw new IOException("Failed to copy file from slave node to master.", e);
+		}
+	}
+		
+	public static List<String> copyDeploymenstToMaster(AbstractBuild<?,?> build, BuildListener listener, 
+			List<String> deployments, File baseDir, DeploymentType deploymentType) throws IOException {
+		List<String> localDeployments = new ArrayList<String>();
+		for (String deployment : deployments) {
+			if (isURL(deployment)) {
+				File localDeployment = new File (baseDir, getURLDeploymentName(deployment, deploymentType));
+				
+				log(listener, "Downloading the deployment from '" + deployment + "' to '" +  localDeployment.getAbsolutePath() + "'");
+				
+				try {
+					copyURLToFile(new URL(deployment), localDeployment, 10000, 10000);
+				} catch (Exception e) {
+					abort(listener, e);
+				}
+				
+				localDeployments.add(localDeployment.getAbsolutePath());
+				
+			} else {
+				if (Utils.runingOnMaster()) { // deployment is already local
+					localDeployments.add(deployment);
+					
+				} else {
+					String localFile = baseDir + File.separator + getName(deployment);
+					log(listener, "Copying the deployment from slave node to '" +  localFile + "'");
+					copyFileFromSlaveToMaster(build, deployment, localFile);
+    				localDeployments.add(localFile);
+				}
+			}
+		}
+		
+		return localDeployments;
+	}
+
+	private static String getURLDeploymentName(String deployment, DeploymentType deploymentType) {
+		if (!isURL(deployment)) {
+			throw new IllegalArgumentException("Deployment paht is not a url: " + deployment);
+		}
+		
+		if (deploymentType == DeploymentType.BINARY) {
+			return "app.tar.gz";
+		} else {
+			String dep = deployment.toLowerCase();
+			if (dep.contains(".ear")) {
+				return "ROOT.ear";
+			} else if (dep.contains(".war")) {
+				return "ROOT.war";
+			} else if (dep.contains("ear")) { // TODO: fuzzy! make a better guess since it 
+											  // might be just part of the url e.g. /bear
+				return "ROOT.ear";
+			} else {
+				return "ROOT.war";
+			}
+		}
+	} 
 }

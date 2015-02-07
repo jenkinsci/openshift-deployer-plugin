@@ -1,7 +1,18 @@
 package org.jenkinsci.plugins.openshift;
 
-import com.jcraft.jsch.Session;
-import com.openshift.client.IApplication;
+import static org.apache.commons.io.FileUtils.copyDirectoryToDirectory;
+import static org.apache.commons.io.FileUtils.copyFile;
+import static org.apache.commons.io.FileUtils.copyFileToDirectory;
+import static org.apache.commons.io.FileUtils.forceDelete;
+import static org.apache.commons.io.FilenameUtils.getName;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+
+import java.io.File;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.List;
+
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.Git;
@@ -15,18 +26,9 @@ import org.eclipse.jgit.transport.OpenSshConfig.Host;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.SshSessionFactory;
 import org.jenkinsci.plugins.openshift.util.Logger;
-import org.jenkinsci.plugins.openshift.util.Utils;
 
-import java.io.File;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.net.URL;
-import java.util.List;
-
-import static org.apache.commons.io.FileUtils.*;
-import static org.jenkinsci.plugins.openshift.util.Utils.copyURLToFile;
-import static org.jenkinsci.plugins.openshift.util.Utils.*;
+import com.jcraft.jsch.Session;
+import com.openshift.client.IApplication;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
@@ -103,9 +105,7 @@ public class GitClient {
 		// Handle OpenShift Directory
 		File dotOpenshiftSource = null;
 
-		if(!StringUtils.isEmpty(openshiftDirectory))
-		{
-			Boolean correctLayout = Utils.validateOpenshiftDirectory(openshiftDirectory);
+		if(!isEmpty(openshiftDirectory)) {
 			if (!openshiftDirectory.endsWith("openshift")) {
                 // Examine the current directory if it contains an openshift or .openshift directory
                 File directory = new File(openshiftDirectory);
@@ -119,23 +119,22 @@ public class GitClient {
                     }
                 });
 
-                for (File file : dirContents)
-                {
+                for (File file : dirContents) {
                     if(file.getName().endsWith("openshift")) {
                         dotOpenshiftSource = file;
                         break;
                     }
-
                 }
 
-            }
-            else
-            {
+            } else {
 				dotOpenshiftSource = new File(openshiftDirectory); // Absolute Path
 			}
 
-			for (File source : dotOpenshiftSource.listFiles())
-                copyDirectoryToDirectory(source, new File(workingCopyDir + File.separator + ".openshift"));
+			if (dotOpenshiftSource != null && dotOpenshiftSource.exists()) {
+    			for (File source : dotOpenshiftSource.listFiles()) {
+                    copyDirectoryToDirectory(source, new File(workingCopyDir + File.separator + ".openshift"));
+    			}
+			}
 		}
 
 		// add directories
@@ -155,19 +154,14 @@ public class GitClient {
 
 	private void copyDeploymentPackages(List<String> deployments, File dest) throws IOException {
 		if (deployments.size() == 1) {
-			File destFile = createRootDeploymentFile(dest, deployments.get(0));
-
-			if (isURL(deployments.get(0))) {
-				log.info("Downloading the deployment package to '" + destFile.getName() + "'");
-				copyURLToFile(new URL(deployments.get(0)), destFile, 10000, 10000);
-			} else {
-				log.info("Copying the deployment package '" + FilenameUtils.getName(deployments.get(0)) + "' to '" + destFile.getName() + "'");
-				copyFile(new File(deployments.get(0)), destFile);
-			}
+			String deployment = deployments.get(0);
+			File destFile = new File(dest, "ROOT." + FilenameUtils.getExtension(deployment));		
+			copyFile(new File(deployment), destFile);
+			log.info("Deployment '" + FilenameUtils.getName(deployment) + "' copied to '" + destFile.getName() + "'");
 		} else {
 			for (String deployment : deployments) {
-				log.info("Copying '" + FilenameUtils.getName(deployment) + "' to '" + dest.getName() + "'");
 				copyFileToDirectory(new File(deployment), dest);
+				log.info("Deployment '" + getName(deployment) + "' copied to '" + dest.getName() + "'");
 			}
 		}
 	}
