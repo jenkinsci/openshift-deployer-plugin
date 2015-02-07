@@ -1,17 +1,22 @@
 package org.jenkinsci.plugins.openshift;
 
 import com.openshift.client.IApplication;
+
 import hudson.AbortException;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
+import hudson.model.Computer;
+
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
@@ -20,17 +25,20 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+import jenkins.model.Jenkins.MasterComputer;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 /**
  * @author <a href="mailto:hoffmann@apache.org">Juergen Hoffmann</a>.
  *         Date: 21-Dez-2014
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(AbstractBuild.class)
+@PrepareForTest({AbstractBuild.class, Computer.class})
 public class DeploymentPackageTest {
 
     @Mock
@@ -75,6 +83,10 @@ public class DeploymentPackageTest {
 
         when(app.getName()).thenReturn("testapp");
         when(app.getGitUrl()).thenReturn(repository.getDirectory().getAbsolutePath());
+        
+        mockStatic(Computer.class);
+        PowerMockito.when(Computer.currentComputer()).thenReturn(mock(MasterComputer.class));
+        
     }
 
 
@@ -110,9 +122,9 @@ public class DeploymentPackageTest {
         }
 
         //Evaluate Results
-        verify(listener, times(1)).getLogger();
         assertNotNull("The list of deployments should not be null", deployments);
         assertTrue("The List of deployments should contain app.war", deployments.contains(getClass().getResource("/deployment/app.war").getPath()));
+        
     }
 
     @Test
@@ -130,8 +142,9 @@ public class DeploymentPackageTest {
         }
 
         // Verify Results
-        verify(listener, times(1)).getLogger();
         assertNotNull("The list of deployments should contain app.war", deployments);
+        assertEquals("One deployment should be in the list", 1, deployments.size());
+        assertTrue("Deployments list should contain app.war", deployments.get(0).endsWith(deploymentPackage));
     }
 
     @Test
