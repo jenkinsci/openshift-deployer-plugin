@@ -11,6 +11,7 @@ import hudson.model.Computer;
 
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -235,5 +236,25 @@ public class DeploymentPackageTest {
 
         GitClient client = new GitClient(app);
         client.deploy(null, null, null, "", dotOpenshiftDirectory);
+    }
+    
+    @Test
+    public void deployAbsolutePathToDeploymentUnit() throws Exception {
+        deploymentPackage = ClassLoader.getSystemResource("deployment/app.tar.gz").getFile();
+        
+        OpenShiftV2Client.DeploymentType deploymentType = OpenShiftV2Client.DeploymentType.BINARY;
+        DeployApplication deployer = new DeployApplication(serverName, appName, cartridges, domain, gearProfile, deploymentPackage, environmentVariables, autoScale, deploymentType, dotOpenshiftDirectory);
+
+        List<String> deployments = null;
+        try {
+            deployments = Whitebox.invokeMethod(deployer, "findDeployments", build, listener);
+        } catch (AbortException e) {
+        	// NOOP
+        }
+
+        // Verify Results
+        assertNotNull("The list of deployments should contain app.war", deployments);
+        assertEquals("One deployment should be in the list", 1, deployments.size());
+        assertEquals(deploymentPackage, deployments.get(0));
     }
 }

@@ -291,7 +291,8 @@ public class DeployApplication extends Builder implements BuildStep {
 					}
 				} else if (!dir.isDirectory() 
 						&& (dir.getRemote().toLowerCase().endsWith(".ear") 
-								|| dir.getRemote().toLowerCase().endsWith(".war"))) { // Handle single Files
+								|| dir.getRemote().toLowerCase().endsWith(".war")
+								|| dir.getRemote().toLowerCase().endsWith(".tar.gz"))) { // Handle single Files
 					deployments.add(dir.getRemote());
 					
 					LOG.fine("Adding " + dir.getRemote() + " to the deployment list");
