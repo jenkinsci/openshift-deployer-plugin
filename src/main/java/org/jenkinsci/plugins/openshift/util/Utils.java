@@ -40,29 +40,6 @@ public final class Utils {
 	private Utils() {
 	}
 	
-//	public static File createRootDeploymentFile(File dest, String deployment) {
-//		StringBuilder path = new StringBuilder();
-//		path.append(dest.getAbsolutePath());
-//		path.append("/ROOT.");
-//		
-//		String dep = deployment.toLowerCase();
-//		if (isURL(dep)) {
-//			if (dep.contains(".ear")) {
-//				path.append("ear");
-//			} else if (dep.contains(".war")) {
-//				path.append("war");
-//			} else if (dep.contains("ear")) { // TODO: fuzzy! might be just part of the url e.g. /bear
-//				path.append("ear");
-//			} else { 						  
-//				path.append("war");
-//			}
-//		} else {
-//			path.append(getExtension(dep));
-//		}
-//		
-//		return new File(path.toString());
-//	}
-//	
 	public static boolean isURL(String str) {
 		return str.startsWith("http://") || str.startsWith("https://");
 	}

@@ -19,7 +19,7 @@ public abstract class BaseJenkinsTest {
 	protected static final String EAP_CARTRIDGE = "jbosseap-6";
 	protected static final String APP_NAME = "testapp";
 	protected static final String SERVER_NAME = "openshift";
-	protected static final String SUCCESS_LOG = "Application deployed to http://testapp-smx.rhcloud.com/";
+	protected static final String SUCCESS_LOG = "Application deployed to http://testapp";
 	
 	protected OpenShiftV2Client client;
 	
