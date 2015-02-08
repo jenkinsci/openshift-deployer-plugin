@@ -1,7 +1,12 @@
 package org.jenkinsci.plugins.openshift;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import hudson.model.Build;
+
 import java.io.IOException;
 
+import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
@@ -10,6 +15,7 @@ import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
+import org.junit.Assert;
 
 public class TestUtils {
 	public static String getProp(String key) {
@@ -37,5 +43,15 @@ public class TestUtils {
         treeWalk.setRecursive(true);
         treeWalk.setFilter(PathFilter.create(file));
         return treeWalk.next(); 
+	}
+	
+	protected static void assertBuildLogContains(Build<?,?> build, String str) throws IOException {
+		assertNotNull("Build shouldn't be null", build);
+		assertNotNull("Pattern shouldn't be null", str);
+		
+		String log = FileUtils.readFileToString(build.getLogFile());
+		System.out.println(log);
+		assertNotNull("Build log shouldn't be null", log);
+		assertTrue("Log should contain the pattern", log.contains(str));
 	}
 }
