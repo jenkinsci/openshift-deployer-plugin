@@ -5,6 +5,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -112,6 +113,22 @@ public class OpenShiftV2Client {
 		}
 		
 		return app;
+	}
+
+	public List<String> getApps(String domainName) {
+		IUser user = conn.getUser();
+		IDomain domain = user.getDomain(domainName);
+		
+		if (domain == null) { // check if domain exists
+			throw new OpenShiftException("Domain '" + domainName + "' doesn't exist.");
+		}
+		
+		List<String> apps = new ArrayList<String>();
+		for (IApplication app : domain.getApplications()) {
+			apps.add(app.getName());
+		}
+		
+		return apps;
 	}
 	
 	public boolean sshKeyExists(File publicKey) throws IOException {

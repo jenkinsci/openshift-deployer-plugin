@@ -45,13 +45,18 @@ public class TestUtils {
         return treeWalk.next(); 
 	}
 	
-	protected static void assertBuildLogContains(Build<?,?> build, String str) throws IOException {
+	protected static void assertBuildLogContains(String msg, Build<?,?> build, String str) throws IOException {
 		assertNotNull("Build shouldn't be null", build);
 		assertNotNull("Pattern shouldn't be null", str);
 		
 		String log = FileUtils.readFileToString(build.getLogFile());
 		System.out.println(log);
 		assertNotNull("Build log shouldn't be null", log);
-		assertTrue("Log should contain the pattern", log.contains(str));
+		assertTrue(msg, log.contains(str));
 	}
+	
+	protected static void assertDeploySucceeded(Build<?,?> build) throws IOException {
+		assertBuildLogContains("Deploy wasn't successful.", build, "Application deployed to http://");
+	}
+
 }
