@@ -1,12 +1,21 @@
 package org.jenkinsci.plugins.openshift;
 
+import hudson.EnvVars;
 import hudson.model.Hudson;
+import hudson.slaves.NodeProperty;
+import hudson.slaves.CommandLauncher;
+import hudson.slaves.DumbSlave;
+import hudson.slaves.RetentionStrategy;
 import hudson.util.ReflectionUtils;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.util.Collections;
 import java.util.Properties;
 
 import org.jenkinsci.plugins.openshift.DeployApplication.DeployApplicationDescriptor;
@@ -105,4 +114,23 @@ public abstract class BaseJenkinsTest {
 									type, 
 									dotOpenShiftDir);
 	}
+	
+    protected CommandLauncher createComputerLauncher(EnvVars env) throws URISyntaxException, MalformedURLException {
+        return new CommandLauncher(
+                String.format("\"%s/bin/java\" %s -jar \"%s\"",
+                        System.getProperty("java.home"),
+                        "",
+                        new File(jenkins.getInstance().getJnlpJars("slave.jar").getURL().toURI()).getAbsolutePath()),
+                env);
+    }
+    
+    protected DumbSlave createSlave(String labels) throws Exception {
+        synchronized (jenkins) {
+            DumbSlave slave = new DumbSlave("slave-" + jenkins.getInstance().getNodes().size(), "dummy",
+    				Files.createTempDirectory("jenkin-slave").toString(), "1", null /* Mode.NORMAL */, labels==null?"":labels, 
+    				createComputerLauncher(null), RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
+    		jenkins.getInstance().addNode(slave);
+    		return slave;
+    	}
+    }
 }

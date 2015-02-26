@@ -3,6 +3,8 @@ package org.jenkinsci.plugins.openshift;
 import static org.jenkinsci.plugins.openshift.TestUtils.assertDeploySucceeded;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
+import hudson.model.labels.LabelExpression;
+import hudson.slaves.DumbSlave;
 
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.annotation.IntegrationTest;
@@ -13,7 +15,6 @@ import org.junit.experimental.categories.Category;
 /**
  * @author ssadeghi
  * 
- * TODO: add tests for plugin running on slave nodes
  */
 @Category(IntegrationTest.class)
 public class DeployApplicationTest extends BaseJenkinsTest {
@@ -27,6 +28,22 @@ public class DeployApplicationTest extends BaseJenkinsTest {
 		String deployment = ClassLoader.getSystemResource(BINARY_DEPLOYMENT).getFile();
 		
 		FreeStyleProject project = jenkins.createFreeStyleProject();
+		DeployApplication deployBuildStep = newDeployAppBuildStep(APP_NAME, deployment, DeploymentType.BINARY);
+		project.getBuildersList().add(deployBuildStep);
+		FreeStyleBuild build = project.scheduleBuild2(0).get();
+		
+		assertDeploySucceeded(build);
+		
+		removeApp(APP_NAME);
+	}
+	
+	@Test
+	public void deployBinaryOnSlave() throws Exception {
+		DumbSlave slave = createSlave("binary");
+		String deployment = ClassLoader.getSystemResource(BINARY_DEPLOYMENT).getFile();
+		
+		FreeStyleProject project = jenkins.createFreeStyleProject();
+		project.setAssignedLabel(LabelExpression.parseExpression(slave.getLabelString()));
 		DeployApplication deployBuildStep = newDeployAppBuildStep(APP_NAME, deployment, DeploymentType.BINARY);
 		project.getBuildersList().add(deployBuildStep);
 		FreeStyleBuild build = project.scheduleBuild2(0).get();
