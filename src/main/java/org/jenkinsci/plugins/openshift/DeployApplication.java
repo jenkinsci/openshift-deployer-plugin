@@ -42,7 +42,6 @@ import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
 import org.jenkinsci.plugins.openshift.util.JenkinsLogger;
 import org.jenkinsci.plugins.openshift.util.Utils;
-import org.jenkinsci.plugins.tokenmacro.MacroEvaluationException;
 import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -91,9 +90,17 @@ public class DeployApplication extends Builder implements BuildStep {
 			abort(listener, "Build is not success : will not try to deploy.");
 		}
 
-		verifyAndExpandAppName(build, listener);
-		verifyAndExpandCartridges(build, listener);
-		verifyAndExpandDeploymentPackage(build, listener);
+		if (isEmpty(appName)) {
+			abort(listener, "Application name is not specified.");
+		}
+
+		if (isEmpty(cartridges)) {
+			abort(listener, "Cartridges are not specified.");
+		}
+
+		if (isEmpty(deploymentPackage)) {
+			abort(listener, "Deployment path is not specified.");
+		}
 
 		try {
 			// find deployment unit
@@ -150,44 +157,6 @@ public class DeployApplication extends Builder implements BuildStep {
 		}
 
 		return true;
-	}
-
-	private void verifyAndExpandAppName(AbstractBuild<?, ?> build, final BuildListener listener) throws IOException {
-		if (isEmpty(appName)) {
-			abort(listener, "Application name is not specified.");
-		}
-
-		appName = expandAll(build, listener, appName);
-	}
-
-	private void verifyAndExpandCartridges(AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
-		if (isEmpty(cartridges)) {
-			abort(listener, "Cartridges are not specified.");
-		}
-
-		cartridges = expandAll(build, listener, cartridges);
-	}
-
-
-	private void verifyAndExpandDeploymentPackage(AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
-		if (isEmpty(deploymentPackage)) {
-			abort(listener, "Deployment path is not specified.");
-		}
-
-		deploymentPackage = expandAll(build, listener, deploymentPackage);
-	}
-
-	private String  expandAll(final AbstractBuild<?, ?> build, final BuildListener listener, String stringWithMacro) throws AbortException {
-		try {
-			return TokenMacro.expandAll(build, listener, stringWithMacro);
-
-		} catch (MacroEvaluationException e) {
-			throw new AbortException(e.getMessage());
-		} catch (InterruptedException e) {
-			throw new AbortException(e.getMessage());
-		} catch (IOException e) {
-			throw new AbortException(e.getMessage());
-		}
 	}
 
 	private void deploy(List<String> deployments, IApplication app, AbstractBuild<?, ?> build, BuildListener listener)
@@ -279,7 +248,7 @@ public class DeployApplication extends Builder implements BuildStep {
 
 		if (isURL(deploymentPackage)) {
 			try {
-				deployments.add(deploymentPackage);
+				deployments.add(TokenMacro.expand(build, listener, deploymentPackage));
 			} catch (Exception e) {
 				throw new AbortException(e.getMessage());
 			}
