@@ -42,6 +42,7 @@ import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
 import org.jenkinsci.plugins.openshift.util.JenkinsLogger;
 import org.jenkinsci.plugins.openshift.util.Utils;
+import org.jenkinsci.plugins.tokenmacro.MacroEvaluationException;
 import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -136,7 +137,7 @@ public class DeployApplication extends Builder implements BuildStep {
 
 			IApplication app;
 			if (isEmpty(environmentVariables)) {
-				app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, null, autoScale);
+				app = client.getOrCreateApp(expandedAppName(build, listener), targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, null, autoScale);
 			} else {
 				Map<String, String> mapOfEnvironmentVariables = new HashMap<String, String>();
 				for (String environmentVariable : Arrays.asList(environmentVariables.split(" "))) {
@@ -147,7 +148,7 @@ public class DeployApplication extends Builder implements BuildStep {
 						abort(listener, "Invalid environment variable: " + environmentVariable);
 					}
 				}
-				app = client.getOrCreateApp(appName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, mapOfEnvironmentVariables, autoScale);
+				app = client.getOrCreateApp(expandedAppName(build, listener), targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, mapOfEnvironmentVariables, autoScale);
 			}
 
 			deploy(deployments, app, build, listener);
@@ -248,7 +249,7 @@ public class DeployApplication extends Builder implements BuildStep {
 
 		if (isURL(deploymentPackage)) {
 			try {
-				deployments.add(TokenMacro.expand(build, listener, deploymentPackage));
+				deployments.add(expandedDeploymentPackage(build, listener));
 			} catch (Exception e) {
 				throw new AbortException(e.getMessage());
 			}
@@ -310,6 +311,31 @@ public class DeployApplication extends Builder implements BuildStep {
 		}
 
 		return deployments;
+	}
+
+	private String expandedAppName(final AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
+		return expandAll(build, listener, appName);
+	}
+
+	private String expandedCartridges(final AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
+		return expandAll(build, listener, cartridges);
+	}
+
+	private String expandedDeploymentPackage(final AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
+		return expandAll(build, listener, deploymentPackage);
+	}
+
+	private String  expandAll(final AbstractBuild<?, ?> build, final BuildListener listener, String stringWithMacro) throws AbortException {
+		try {
+			return TokenMacro.expandAll(build, listener, stringWithMacro);
+
+		} catch (MacroEvaluationException e) {
+			throw new AbortException(e.getMessage());
+		} catch (InterruptedException e) {
+			throw new AbortException(e.getMessage());
+		} catch (IOException e) {
+			throw new AbortException(e.getMessage());
+		}
 	}
 
 	public boolean isBinaryDeploy() {
