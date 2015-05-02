@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.List;
 
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.Git;
@@ -25,10 +27,12 @@ import org.eclipse.jgit.transport.JschConfigSessionFactory;
 import org.eclipse.jgit.transport.OpenSshConfig.Host;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.SshSessionFactory;
+import org.eclipse.jgit.util.FS;
 import org.jenkinsci.plugins.openshift.util.Logger;
 
 import com.jcraft.jsch.Session;
 import com.openshift.client.IApplication;
+import org.jenkinsci.plugins.openshift.util.Utils;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
@@ -86,6 +90,15 @@ public class GitClient {
 			protected void configure(Host hc, Session session) {
 				session.setConfig("StrictHostKeyChecking", "no");
 			}
+
+			// Use private key defined in Jenkins System Configuration
+			@Override
+			protected JSch createDefaultJSch( FS fs ) throws JSchException {
+				JSch defaultJSch = super.createDefaultJSch( fs );
+				defaultJSch.addIdentity(Utils.getSSHPrivateKey() );
+				return defaultJSch;
+			}
+
 		});
 		Git git = Git.cloneRepository().setURI(app.getGitUrl()).setDirectory(workingCopyDir).call();
 
