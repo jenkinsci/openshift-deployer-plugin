@@ -4,6 +4,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.jenkinsci.plugins.openshift.util.Utils.abort;
 import static org.jenkinsci.plugins.openshift.util.Utils.findServer;
 import static org.jenkinsci.plugins.openshift.util.Utils.log;
+import hudson.AbortException;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.BuildListener;
@@ -69,8 +70,12 @@ public class DeleteApplication extends Builder implements BuildStep {
         		
         		targetDomain = domains.get(0);
         	}
-        	
-        	IApplication deletedApp = client.deleteApp(appName, targetDomain);
+        	String expandedAppName = expandedAppName(build, listener);
+			if(!appName.equalsIgnoreCase(expandedAppName))
+			{
+				log(listener, "Expanded application name to be used (non alphanum chars sanitized): " + expandedAppName);
+			}
+        	IApplication deletedApp = client.deleteApp(expandedAppName, targetDomain);
         	if (deletedApp != null) {
 			log(listener, "Application '" + appName + "' [" + deletedApp.getApplicationUrl() + "] is deleted.");
 		}
@@ -84,7 +89,10 @@ public class DeleteApplication extends Builder implements BuildStep {
 
         return true;
     }
-	
+	private String expandedAppName(final AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
+		return Utils.removeNonAlpha(Utils.expandAll(build, listener, appName));
+	}
+
 	public BuildStepMonitor getRequiredMonitorService() {
         return BuildStepMonitor.BUILD;
     }
