@@ -1,42 +1,24 @@
 package org.jenkinsci.plugins.openshift;
 
-import static java.util.Collections.singletonList;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.jenkinsci.plugins.openshift.util.Utils.abort;
-import static org.jenkinsci.plugins.openshift.util.Utils.copyDeploymenstToMaster;
-import static org.jenkinsci.plugins.openshift.util.Utils.copyFileFromSlaveToMaster;
-import static org.jenkinsci.plugins.openshift.util.Utils.findServer;
-import static org.jenkinsci.plugins.openshift.util.Utils.isURL;
-import static org.jenkinsci.plugins.openshift.util.Utils.log;
+import com.openshift.client.IApplication;
+import com.openshift.client.IHttpClient.ISSLCertificateCallback;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
+import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.Result;
-import hudson.model.AbstractBuild;
 import hudson.remoting.VirtualChannel;
 import hudson.tasks.BuildStep;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Logger;
-
-import javax.net.ssl.SSLSession;
-
 import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
-
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.text.StrTokenizer;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
@@ -48,8 +30,17 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import com.openshift.client.IApplication;
-import com.openshift.client.IHttpClient.ISSLCertificateCallback;
+import javax.net.ssl.SSLSession;
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+import java.util.logging.Logger;
+
+import static java.util.Collections.singletonList;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.text.StrMatcher.quoteMatcher;
+import static org.apache.commons.lang3.text.StrMatcher.spaceMatcher;
+import static org.jenkinsci.plugins.openshift.util.Utils.*;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
@@ -139,15 +130,7 @@ public class DeployApplication extends Builder implements BuildStep {
 			if (isEmpty(environmentVariables)) {
 				app = client.getOrCreateApp(expandedAppName(build, listener), targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, null, autoScale);
 			} else {
-				Map<String, String> mapOfEnvironmentVariables = new HashMap<String, String>();
-				for (String environmentVariable : Arrays.asList(environmentVariables.split(" "))) {
-					if (environmentVariable.contains("=")) {
-						String[] parts = environmentVariable.split("=");
-						mapOfEnvironmentVariables.put(parts[0], parts[1]);
-					} else {
-						abort(listener, "Invalid environment variable: " + environmentVariable);
-					}
-				}
+				Map<String, String> mapOfEnvironmentVariables = parseEnvironmentVariables(listener);
 				app = client.getOrCreateApp(expandedAppName(build, listener), targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, mapOfEnvironmentVariables, autoScale);
 			}
 
@@ -158,6 +141,23 @@ public class DeployApplication extends Builder implements BuildStep {
 		}
 
 		return true;
+	}
+
+	private Map<String, String> parseEnvironmentVariables(final BuildListener listener) throws AbortException {
+		Map<String, String> mapOfEnvironmentVariables = new HashMap<String, String>();
+
+		for (String environmentVariable :
+				new StrTokenizer(environmentVariables, spaceMatcher(), quoteMatcher()).getTokenList()) {
+
+			if (environmentVariable.contains("=")) {
+				String[] parts = environmentVariable.split("=", 2);
+				mapOfEnvironmentVariables.put(parts[0], parts[1]);
+			} else {
+                abort(listener, "Invalid environment variable: " + environmentVariable);
+            }
+        }
+
+		return mapOfEnvironmentVariables;
 	}
 
 	private void deploy(List<String> deployments, IApplication app, AbstractBuild<?, ?> build, BuildListener listener)
