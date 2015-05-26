@@ -26,10 +26,13 @@ import jenkins.model.Jenkins.MasterComputer;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jenkinsci.plugins.openshift.DeployApplication;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.Server;
+import org.jenkinsci.plugins.tokenmacro.MacroEvaluationException;
+import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
@@ -283,4 +286,26 @@ public final class Utils {
 			}
 		}
 	} 
+	public static String  expandAll(final AbstractBuild<?, ?> build, final BuildListener listener, String stringWithMacro) throws AbortException {
+		try {
+			return TokenMacro.expandAll(build, listener, stringWithMacro);
+
+		} catch (MacroEvaluationException e) {
+			throw new AbortException(e.getMessage());
+		} catch (InterruptedException e) {
+			throw new AbortException(e.getMessage());
+		} catch (IOException e) {
+			throw new AbortException(e.getMessage());
+		}
+	}
+	public static String removeNonAlpha(String toSanitize){
+			if(!StringUtils.isEmpty(toSanitize))
+			{
+				return toSanitize.replaceAll("\\P{Alnum}", "");
+			}else
+			{
+				return toSanitize;
+			}
+		
+	}
 }

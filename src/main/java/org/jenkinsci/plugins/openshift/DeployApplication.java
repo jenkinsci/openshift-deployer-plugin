@@ -37,6 +37,7 @@ import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.DeploymentType;
 import org.jenkinsci.plugins.openshift.OpenShiftV2Client.ValidationResult;
@@ -136,8 +137,14 @@ public class DeployApplication extends Builder implements BuildStep {
 			}
 
 			IApplication app;
+			String expandedAppName = expandedAppName(build, listener);
+			if(!appName.equalsIgnoreCase(expandedAppName))
+			{
+				log(listener, "Expanded application name to be used (non alphanum chars sanitized): " + expandedAppName);
+			}
 			if (isEmpty(environmentVariables)) {
-				app = client.getOrCreateApp(expandedAppName(build, listener), targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, null, autoScale);
+				
+				app = client.getOrCreateApp(expandedAppName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, null, autoScale);
 			} else {
 				Map<String, String> mapOfEnvironmentVariables = new HashMap<String, String>();
 				for (String environmentVariable : Arrays.asList(environmentVariables.split(" "))) {
@@ -148,7 +155,7 @@ public class DeployApplication extends Builder implements BuildStep {
 						abort(listener, "Invalid environment variable: " + environmentVariable);
 					}
 				}
-				app = client.getOrCreateApp(expandedAppName(build, listener), targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, mapOfEnvironmentVariables, autoScale);
+				app = client.getOrCreateApp(expandedAppName, targetDomain, Arrays.asList(cartridges.split(" ")), gearProfile, mapOfEnvironmentVariables, autoScale);
 			}
 
 			deploy(deployments, app, build, listener);
@@ -314,29 +321,18 @@ public class DeployApplication extends Builder implements BuildStep {
 	}
 
 	private String expandedAppName(final AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
-		return expandAll(build, listener, appName);
+		return Utils.removeNonAlpha(Utils.expandAll(build, listener, appName));
 	}
 
 	private String expandedCartridges(final AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
-		return expandAll(build, listener, cartridges);
+		return Utils.expandAll(build, listener, cartridges);
 	}
 
 	private String expandedDeploymentPackage(final AbstractBuild<?, ?> build, final BuildListener listener) throws AbortException {
-		return expandAll(build, listener, deploymentPackage);
+		return Utils.expandAll(build, listener, deploymentPackage);
 	}
 
-	private String  expandAll(final AbstractBuild<?, ?> build, final BuildListener listener, String stringWithMacro) throws AbortException {
-		try {
-			return TokenMacro.expandAll(build, listener, stringWithMacro);
-
-		} catch (MacroEvaluationException e) {
-			throw new AbortException(e.getMessage());
-		} catch (InterruptedException e) {
-			throw new AbortException(e.getMessage());
-		} catch (IOException e) {
-			throw new AbortException(e.getMessage());
-		}
-	}
+	
 
 	public boolean isBinaryDeploy() {
 		return deploymentType ==  DeploymentType.BINARY;
