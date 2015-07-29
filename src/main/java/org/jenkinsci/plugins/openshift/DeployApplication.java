@@ -142,7 +142,9 @@ public class DeployApplication extends Builder implements BuildStep {
 				Map<String, String> mapOfEnvironmentVariables = new HashMap<String, String>();
 				for (String environmentVariable : Arrays.asList(environmentVariables.split(" "))) {
 					if (environmentVariable.contains("=")) {
-						String[] parts = environmentVariable.split("=");
+                        // regex do not split equal escaped by a backslash
+                        String regex = ".*[^\\\\]=.*";
+						String[] parts = environmentVariable.split(regex);
 						mapOfEnvironmentVariables.put(parts[0], parts[1]);
 					} else {
 						abort(listener, "Invalid environment variable: " + environmentVariable);
