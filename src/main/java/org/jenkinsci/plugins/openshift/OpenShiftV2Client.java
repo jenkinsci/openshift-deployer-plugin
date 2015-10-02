@@ -210,9 +210,9 @@ public class OpenShiftV2Client {
 		return cartridges;
 	}
 
-	public List<String> getGearProfiles() {
+	public List<String> getGearProfiles(String domainName) {
 		List<String> gearProfiles = new LinkedList<String>();
-		IDomain domain = conn.getUser().getDefaultDomain();
+		IDomain domain = conn.getUser().getDomain(domainName);
 		
 		if (domain != null) {
 			for (IGearProfile gearProfile : domain.getAvailableGearProfiles()) {

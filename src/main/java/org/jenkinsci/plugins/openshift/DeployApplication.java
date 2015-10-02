@@ -470,7 +470,7 @@ public class DeployApplication extends Builder implements BuildStep {
 			}
 		}
 
-		public ListBoxModel doFillGearProfileItems(@QueryParameter("serverName") final String serverName) {
+		public ListBoxModel doFillGearProfileItems(@QueryParameter("serverName") final String serverName, @QueryParameter("domain") final String domain) {
 			ListBoxModel items = new ListBoxModel();
 			Server server = findServer(serverName);
 
@@ -479,7 +479,7 @@ public class DeployApplication extends Builder implements BuildStep {
 			}
 
 			OpenShiftV2Client client = new OpenShiftV2Client(server.getBrokerAddress(), server.getUsername(), server.getPassword());
-			for (String gearProfile : client.getGearProfiles()) {
+			for (String gearProfile : client.getGearProfiles(domain)) {
 				items.add(gearProfile, gearProfile);
 			}
 
