@@ -2,7 +2,7 @@ package org.jenkinsci.plugins.openshift.util;
 
 import java.io.OutputStream;
 
-import com.google.common.io.NullOutputStream;
+import org.apache.commons.io.output.NullOutputStream;
 
 /**
  * @author Siamak Sadeghianfar <ssadeghi@redhat.com>
