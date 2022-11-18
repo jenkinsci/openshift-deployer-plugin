@@ -19,6 +19,7 @@ import hudson.model.Computer;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 
 import jenkins.model.Jenkins.MasterComputer;
@@ -71,7 +72,7 @@ public class DeploymentPackageTest {
     @Before
     public void setup() throws IOException {
         // Define a Test Directory
-        File localPath = File.createTempFile("TestGitRepository", "");
+        File localPath = Files.createTempFile("TestGitRepository", "").toFile();
 
         // prepare a new folder
         if(localPath.exists()) localPath.delete();

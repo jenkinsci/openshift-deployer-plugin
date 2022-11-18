@@ -13,6 +13,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Arrays;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -64,7 +65,7 @@ public class GitClientTest {
 	}
 
 	private static File createPath(String path) throws IOException {
-		File file = File.createTempFile(path, "");
+		File file = Files.createTempFile(path, "").toFile();
 		file.delete();
 		return file;
 	}
