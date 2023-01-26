@@ -62,7 +62,7 @@
 
 	<properties>
 		<openshift-client.version>2.6.2.Final</openshift-client.version>
-		<jgit.version>3.5.1.201410131835-r</jgit.version>
+		<jgit.version>3.5.3-atlassian-13</jgit.version>
 		<powermock.version>1.6.0</powermock.version>
 	</properties>
 
